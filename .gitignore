@@ -1,0 +1,10 @@
+# قاعدة بيانات SQLite وملفاتها (لا تُرفع للمستودع)
+/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
