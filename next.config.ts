@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Standalone output → deployable to any Node.js host (Hostinger) without Vercel features.
-  output: "standalone",
+  // Two deploy targets share this config:
+  //  - Cloudflare Pages (default): no `output` — @cloudflare/next-on-pages
+  //    transforms the build for the Edge Runtime.
+  //  - Hostinger / any Node host: BUILD_STANDALONE=1 npm run build → a
+  //    self-contained .next/standalone server.
+  ...(process.env.BUILD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,

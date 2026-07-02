@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { THEME_COOKIE } from "@/lib/i18n/config";
 
 export type Theme = "light" | "dark";
@@ -12,8 +12,14 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({ initialTheme, children }: { initialTheme: Theme; children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  // The boot script in the root layout applies the .dark class before paint;
+  // this state only drives the toggle icon and syncs to it after hydration.
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
+    if (document.documentElement.classList.contains("dark")) setTheme("dark");
+  }, []);
 
   const toggle = useCallback(() => {
     setTheme((prev) => {

@@ -47,6 +47,27 @@ The app boots in **demo mode** with a fully seeded Arabic workspace
 3. Restart — auth and data now run against PostgreSQL with full
    multi-tenant Row Level Security.
 
+## Deploying to Cloudflare Pages
+
+The app is fully Edge-compatible: every route is statically prerendered and
+auth runs in the edge middleware — no Node.js runtime required.
+
+```bash
+npx @cloudflare/next-on-pages@1     # produces .vercel/output/static
+```
+
+In the Cloudflare Pages dashboard set:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npx @cloudflare/next-on-pages@1` |
+| Build output directory | `.vercel/output/static` |
+| Compatibility flags | `nodejs_compat` |
+
+Add the environment variables from `.env.example` (Settings → Environment
+variables). Supabase auth works unchanged — sign-in happens in the browser
+and the middleware validates the session cookie at the edge.
+
 ## Deploying to Hostinger (Node.js hosting)
 
 1. Push this repository to GitHub and connect it in hPanel, or upload the
@@ -54,10 +75,10 @@ The app boots in **demo mode** with a fully seeded Arabic workspace
 2. Build:
    ```bash
    npm ci
-   npm run build
+   BUILD_STANDALONE=1 npm run build
    ```
-3. The build produces a self-contained server in `.next/standalone`
-   (`output: "standalone"` — no Vercel-only features). Deploy these paths:
+3. With `BUILD_STANDALONE=1` the build produces a self-contained server in
+   `.next/standalone` (no Vercel-only features). Deploy these paths:
    ```
    .next/standalone/   → app root
    .next/static/       → .next/static

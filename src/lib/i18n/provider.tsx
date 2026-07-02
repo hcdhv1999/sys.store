@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { en, type MessageKey } from "./en";
 import { ar } from "./ar";
-import { dirOf, LOCALE_COOKIE, type Locale } from "./config";
+import { defaultLocale, dirOf, LOCALE_COOKIE, type Locale } from "./config";
 
 const dictionaries: Record<Locale, Record<MessageKey, string>> = { en, ar };
 
@@ -16,8 +16,16 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-export function I18nProvider({ initialLocale, children }: { initialLocale: Locale; children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+export function I18nProvider({ children }: { children: ReactNode }) {
+  // Pages prerender with the Arabic default; the persisted cookie locale is
+  // applied after hydration (the <html> dir/lang is already correct from the
+  // pre-paint boot script in the root layout).
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|; )hirf-locale=(ar|en)/);
+    if (match && match[1] !== defaultLocale) setLocaleState(match[1] as Locale);
+  }, []);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);

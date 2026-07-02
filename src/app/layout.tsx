@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic, Inter } from "next/font/google";
-import { cookies } from "next/headers";
 import { I18nProvider } from "@/lib/i18n/provider";
-import { ThemeProvider, type Theme } from "@/components/providers/theme-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
-import { defaultLocale, dirOf, LOCALE_COOKIE, locales, THEME_COOKIE, type Locale } from "@/lib/i18n/config";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -22,17 +20,24 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg" },
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const localeCookie = cookieStore.get(LOCALE_COOKIE)?.value;
-  const locale: Locale = locales.includes(localeCookie as Locale) ? (localeCookie as Locale) : defaultLocale;
-  const theme: Theme = cookieStore.get(THEME_COOKIE)?.value === "dark" ? "dark" : "light";
+// Applies the persisted locale/theme before first paint. Keeping the cookie
+// read out of the server tree lets every route prerender statically, which is
+// what Cloudflare Pages (next-on-pages) requires for function-free deploys.
+const bootScript = `(function(){try{
+var m=document.cookie.match(/(?:^|; )hirf-locale=(ar|en)/);var l=m?m[1]:"ar";
+var d=document.documentElement;d.lang=l;d.dir=l==="en"?"ltr":"rtl";
+if(/(?:^|; )hirf-theme=dark/.test(document.cookie))d.classList.add("dark");
+}catch(e){}})();`;
 
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={locale} dir={dirOf(locale)} className={theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: bootScript }} />
+      </head>
       <body className={`${inter.variable} ${plexArabic.variable} min-h-dvh antialiased`}>
-        <ThemeProvider initialTheme={theme}>
-          <I18nProvider initialLocale={locale}>
+        <ThemeProvider>
+          <I18nProvider>
             <ToastProvider>{children}</ToastProvider>
           </I18nProvider>
         </ThemeProvider>
