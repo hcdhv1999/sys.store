@@ -201,10 +201,10 @@ function TasksMonthGrid({ tasks }: { tasks: Task[] }) {
   while (cells.length % 7 !== 0) cells.push(null);
 
   const dayNames = Array.from({ length: 7 }, (_, i) =>
-    new Date(Date.UTC(2026, 5, 28 + i)).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", { weekday: "short" }),
+    new Date(Date.UTC(2026, 5, 28 + i)).toLocaleDateString(locale === "ar" ? "ar" : "en-US", { weekday: "short" }),
   );
 
-  const monthTitle = first.toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "long", year: "numeric" });
+  const monthTitle = first.toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US", { month: "long", year: "numeric" });
 
   return (
     <Card className="overflow-hidden">

@@ -5,7 +5,7 @@ const numberCache = new Map<string, Intl.NumberFormat>();
 
 function intlLocale(locale: Locale) {
   // Latin digits in both languages keeps tables scannable and copy-paste safe.
-  return locale === "ar" ? "ar-SA-u-nu-latn" : "en-US";
+  return locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US";
 }
 
 export function formatCurrency(value: number, locale: Locale, compact = false): string {

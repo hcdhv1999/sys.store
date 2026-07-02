@@ -52,7 +52,7 @@ export function DataTable<T>({ data, columns, searchPlaceholder, toolbar, onRowC
   const total = table.getFilteredRowModel().rows.length;
   const from = total === 0 ? 0 : pageIndex * pageSize + 1;
   const to = Math.min((pageIndex + 1) * pageSize, total);
-  const nf = new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US");
+  const nf = new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US");
 
   return (
     <div>

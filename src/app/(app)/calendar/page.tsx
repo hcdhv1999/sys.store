@@ -133,9 +133,9 @@ export default function CalendarPage() {
   }, [startOffset, daysInMonth]);
 
   const isoOf = (day: number) => `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  const monthTitle = first.toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "long", year: "numeric" });
+  const monthTitle = first.toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US", { month: "long", year: "numeric" });
   const dayNames = Array.from({ length: 7 }, (_, i) =>
-    new Date(Date.UTC(2026, 5, 28 + i)).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", { weekday: "short" }),
+    new Date(Date.UTC(2026, 5, 28 + i)).toLocaleDateString(locale === "ar" ? "ar" : "en-US", { weekday: "short" }),
   );
 
   const dayEvents = events

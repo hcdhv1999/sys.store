@@ -85,7 +85,7 @@ export default function FinancePage() {
 
   const summary = financeSummary();
   const monthLabel = (m: string) =>
-    new Date(m + "-01").toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", { month: "short" });
+    new Date(m + "-01").toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US", { month: "short" });
   const cashflow = monthlyFinancials.map((m) => ({
     label: monthLabel(m.month),
     net: m.revenue - m.expenses,

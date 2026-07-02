@@ -61,8 +61,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
       <aside
         className={cn(
-          "fixed inset-y-0 start-0 z-50 flex w-64 flex-col bg-sidebar transition-transform duration-200 lg:translate-x-0",
-          open ? "translate-x-0" : "ltr:-translate-x-full rtl:translate-x-full",
+          "fixed inset-y-0 start-0 z-50 flex w-64 flex-col bg-sidebar transition-transform duration-200",
+          // off-canvas below lg only; max-lg keeps RTL/LTR variants from overriding desktop
+          open ? "translate-x-0" : "max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full",
         )}
       >
         <div className="flex items-center justify-between px-5 py-5">
