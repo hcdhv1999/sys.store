@@ -16,6 +16,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/badge";
+import { DocumentClientHeader } from "@/components/document-client-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useQuotations } from "@/hooks/use-data";
@@ -214,7 +215,8 @@ export default function QuotationsPage() {
             </>
           }
         >
-          <div className="flex items-center justify-between">
+          <DocumentClientHeader clientId={selected.clientId} />
+          <div className="mt-3 flex items-center justify-between">
             <div>
               <p className="text-base font-bold text-ink">{selected.title}</p>
               <p className="mt-0.5 text-xs text-ink-3 tabular-nums">

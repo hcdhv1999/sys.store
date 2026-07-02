@@ -43,13 +43,26 @@ export function ClientDetail({ id }: { id: string }) {
               ))}
             </div>
             <p className="mt-1 text-sm text-ink-2">{client.industry}</p>
+            {/* Only rows with values render — no empty labels for minimal clients */}
             <div className="mt-3 grid gap-x-8 gap-y-1.5 text-xs text-ink-2 sm:grid-cols-2 lg:grid-cols-3">
-              <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.email}</span></span>
-              <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.phone}</span></span>
-              <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.website}</span></span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-ink-3" />{client.address || client.city}</span>
-              <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-ink-3" />{t("clients.cr")}: <span dir="ltr">{client.cr}</span></span>
-              <span className="flex items-center gap-1.5"><Receipt className="h-3.5 w-3.5 text-ink-3" />{t("clients.vatNumber")}: <span dir="ltr">{client.vatNumber}</span></span>
+              {client.phone ? (
+                <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.phone}</span></span>
+              ) : null}
+              {client.email ? (
+                <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.email}</span></span>
+              ) : null}
+              {client.website ? (
+                <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-ink-3" /><span dir="ltr">{client.website}</span></span>
+              ) : null}
+              {client.address || client.city ? (
+                <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-ink-3" />{client.address || client.city}</span>
+              ) : null}
+              {client.cr ? (
+                <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-ink-3" />{t("clients.cr")}: <span dir="ltr">{client.cr}</span></span>
+              ) : null}
+              {client.vatNumber ? (
+                <span className="flex items-center gap-1.5"><Receipt className="h-3.5 w-3.5 text-ink-3" />{t("clients.vatNumber")}: <span dir="ltr">{client.vatNumber}</span></span>
+              ) : null}
             </div>
           </div>
           <div className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3 text-center sm:text-start">

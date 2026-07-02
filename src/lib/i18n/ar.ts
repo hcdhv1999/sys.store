@@ -152,6 +152,10 @@ export const ar: Record<MessageKey, string> = {
   "dashboard.welcomeBack": "أهلًا بعودتك",
 
   // Clients / CRM
+  "clients.fullName": "الاسم الكامل",
+  "clients.mobile": "رقم الجوال",
+  "clients.businessActivity": "النشاط التجاري",
+  "clients.optionalSection": "بيانات إضافية (اختياري)",
   "clients.title": "العملاء",
   "clients.subtitle": "إدارة علاقات العملاء من أول تواصل حتى الشراكة الدائمة",
   "clients.addClient": "إضافة عميل",

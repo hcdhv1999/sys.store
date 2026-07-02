@@ -150,6 +150,10 @@ export const en = {
   "dashboard.welcomeBack": "Welcome back",
 
   // Clients / CRM
+  "clients.fullName": "Full name",
+  "clients.mobile": "Mobile number",
+  "clients.businessActivity": "Business activity",
+  "clients.optionalSection": "Optional details",
   "clients.title": "Clients",
   "clients.subtitle": "Manage client relationships from lead to loyal account",
   "clients.addClient": "Add client",

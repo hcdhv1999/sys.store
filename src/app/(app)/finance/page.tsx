@@ -17,6 +17,7 @@ import { Field, Input, Select } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DocumentClientHeader } from "@/components/document-client-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useExpenses, useInvoices } from "@/hooks/use-data";
@@ -318,14 +319,12 @@ export default function FinancePage() {
             </>
           }
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-ink-3">{t("finance.billTo")}</p>
-              <p className="text-base font-bold text-ink">{clientName(selected.clientId)}</p>
-              <p className="mt-0.5 text-xs text-ink-3 tabular-nums">
-                {t("finance.issueDate")}: {formatDate(selected.issueDate, locale)} · {t("common.dueDate")}: {formatDate(selected.dueDate, locale)}
-              </p>
-            </div>
+          <p className="mb-2 text-xs font-bold text-ink-3 uppercase">{t("finance.billTo")}</p>
+          <DocumentClientHeader clientId={selected.clientId} />
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs text-ink-3 tabular-nums">
+              {t("finance.issueDate")}: {formatDate(selected.issueDate, locale)} · {t("common.dueDate")}: {formatDate(selected.dueDate, locale)}
+            </p>
             <StatusBadge status={selected.status} />
           </div>
           <table className="mt-4 w-full text-sm">

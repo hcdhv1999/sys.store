@@ -17,7 +17,7 @@ import { Select } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients } from "@/hooks/use-data";
-import { clientRollup } from "@/lib/data/queries";
+import { byId, clientRollup } from "@/lib/data/queries";
 import { ClientFormDialog } from "@/features/clients/client-form";
 import type { Client, ClientStatus } from "@/types";
 
@@ -120,7 +120,12 @@ export default function ClientsPage() {
           <DataTable
             data={filtered}
             columns={columns}
-            onRowClick={(client) => router.push(`/clients/${client.id}`)}
+            onRowClick={(client) => {
+              // Session-created demo clients have no prerendered profile page;
+              // with Supabase connected every client persists and navigates.
+              if (byId.client(client.id)) router.push(`/clients/${client.id}`);
+              else toast(t("common.demo"), "info");
+            }}
             toolbar={
               <Select
                 value={statusFilter}
