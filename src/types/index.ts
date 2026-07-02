@@ -124,9 +124,13 @@ export interface Task {
 }
 
 export interface InvoiceItem {
+  /** short service name shown in the items table (optional for legacy rows) */
+  service?: string;
   description: string;
   qty: number;
   unitPrice: number;
+  /** per-line discount in percent (0–100); absent = 0 */
+  discountPct?: number;
 }
 
 export interface Invoice {
@@ -141,6 +145,8 @@ export interface Invoice {
   items: InvoiceItem[];
   paidAmount: number;
   recurring: boolean;
+  notes?: string;
+  terms?: string;
 }
 
 export interface Expense {
@@ -164,6 +170,8 @@ export interface Quotation {
   issueDate: string;
   validUntil: string;
   items: InvoiceItem[];
+  notes?: string;
+  terms?: string;
 }
 
 export interface Campaign {

@@ -22,12 +22,35 @@ import type { Campaign, Client, Employee, Invoice, Project, Quotation } from "@/
 
 export const VAT_RATE = 0.15;
 
-export function invoiceSubtotal(inv: { items: { qty: number; unitPrice: number }[] }): number {
-  return inv.items.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
+type LineItems = { items: { qty: number; unitPrice: number; discountPct?: number }[] };
+
+export function lineGross(item: { qty: number; unitPrice: number }): number {
+  return item.qty * item.unitPrice;
 }
 
-export function invoiceTotal(inv: { items: { qty: number; unitPrice: number }[] }): number {
-  return Math.round(invoiceSubtotal(inv) * (1 + VAT_RATE));
+export function lineDiscount(item: { qty: number; unitPrice: number; discountPct?: number }): number {
+  return lineGross(item) * ((item.discountPct ?? 0) / 100);
+}
+
+export function lineNet(item: { qty: number; unitPrice: number; discountPct?: number }): number {
+  return lineGross(item) - lineDiscount(item);
+}
+
+/** Full money breakdown for a sales document (quotation or invoice). */
+export function docTotals(doc: LineItems) {
+  const subtotal = doc.items.reduce((s, i) => s + lineGross(i), 0);
+  const discount = doc.items.reduce((s, i) => s + lineDiscount(i), 0);
+  const taxable = subtotal - discount;
+  const vat = taxable * VAT_RATE;
+  return { subtotal, discount, taxable, vat, total: Math.round(taxable + vat) };
+}
+
+export function invoiceSubtotal(inv: LineItems): number {
+  return docTotals(inv).subtotal;
+}
+
+export function invoiceTotal(inv: LineItems): number {
+  return docTotals(inv).total;
 }
 
 export function invoiceOutstanding(inv: Invoice): number {

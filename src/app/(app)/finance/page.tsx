@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlarmClock, BadgeCheck, Banknote, Landmark, Plus, Printer, ReceiptText, Repeat, Trash2, Wallet } from "lucide-react";
+import { AlarmClock, BadgeCheck, Banknote, Landmark, Plus, ReceiptText, Repeat, Wallet } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
@@ -17,7 +17,6 @@ import { Field, Input, Select } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DocumentClientHeader } from "@/components/document-client-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useExpenses, useInvoices } from "@/hooks/use-data";
@@ -26,13 +25,14 @@ import {
   expensesByCategory,
   financeSummary,
   invoiceOutstanding,
-  invoiceSubtotal,
   invoiceTotal,
-  VAT_RATE,
 } from "@/lib/data/queries";
 import { monthlyFinancials, TENANT_ID } from "@/lib/data/seed";
 import { DonutChart, TrendAreaChart } from "@/components/charts";
-import type { Expense, Invoice, InvoiceStatus } from "@/types";
+import { DocumentSheet } from "@/features/documents/document-sheet";
+import { fromInvoice } from "@/features/documents/model";
+import { emptyItem, itemsValid, LineItemsEditor } from "@/features/documents/line-items-editor";
+import type { Expense, Invoice, InvoiceItem, InvoiceStatus } from "@/types";
 
 const invoiceColumnHelper = createColumnHelper<Invoice>();
 const expenseColumnHelper = createColumnHelper<Expense>();
@@ -41,13 +41,7 @@ const invoiceSchema = z.object({
   clientId: z.string().min(1),
   dueDate: z.string().min(8),
   recurring: z.boolean(),
-  items: z.array(
-    z.object({
-      description: z.string().min(2),
-      qty: z.coerce.number().positive(),
-      unitPrice: z.coerce.number().positive(),
-    }),
-  ).min(1),
+  notes: z.string().optional(),
 });
 type InvoiceForm = z.infer<typeof invoiceSchema>;
 
@@ -72,9 +66,11 @@ export default function FinancePage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [invoiceFilter, setInvoiceFilter] = useState<"all" | InvoiceStatus>("all");
-  const [selected, setSelected] = useState<Invoice | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [expenseFormOpen, setExpenseFormOpen] = useState(false);
+  const [formItems, setFormItems] = useState<InvoiceItem[]>([emptyItem()]);
+  const [editingItems, setEditingItems] = useState<InvoiceItem[] | null>(null);
 
   useEffect(() => {
     if (!invoicesLoading && !expensesLoading && !hydrated) {
@@ -93,12 +89,12 @@ export default function FinancePage() {
   }));
 
   const filteredInvoices = invoiceFilter === "all" ? invoices : invoices.filter((i) => i.status === invoiceFilter);
+  const selected = invoices.find((i) => i.id === selectedId) ?? null;
 
   function markPaid(id: string) {
     setInvoices((prev) =>
       prev.map((inv) => (inv.id === id ? { ...inv, status: "paid" as const, paidAmount: invoiceTotal(inv) } : inv)),
     );
-    setSelected(null);
     toast(`${t("finance.markPaid")} ✓`);
   }
 
@@ -173,11 +169,14 @@ export default function FinancePage() {
   // Invoice form
   const invoiceForm = useForm<InvoiceForm>({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: { recurring: false, items: [{ description: "", qty: 1, unitPrice: 0 }] },
+    defaultValues: { recurring: false },
   });
-  const { fields, append, remove } = useFieldArray({ control: invoiceForm.control, name: "items" });
 
   const onCreateInvoice = invoiceForm.handleSubmit((values) => {
+    if (!itemsValid(formItems)) {
+      toast(t("common.invalidValue"), "error");
+      return;
+    }
     const number = `INV-2026-${String(54 + invoices.length + 1 - 12).padStart(3, "0")}`;
     setInvoices((prev) => [
       {
@@ -189,16 +188,28 @@ export default function FinancePage() {
         status: "draft",
         issueDate: new Date().toISOString().slice(0, 10),
         dueDate: values.dueDate,
-        items: values.items,
+        items: formItems,
         paidAmount: 0,
         recurring: values.recurring,
+        notes: values.notes,
       },
       ...prev,
     ]);
-    invoiceForm.reset({ recurring: false, items: [{ description: "", qty: 1, unitPrice: 0 }] });
+    invoiceForm.reset({ recurring: false });
+    setFormItems([emptyItem()]);
     setInvoiceFormOpen(false);
     toast(`${t("finance.newInvoice")}: ${number} ✓`);
   });
+
+  function saveEditedItems() {
+    if (!selected || !editingItems || !itemsValid(editingItems)) {
+      toast(t("common.invalidValue"), "error");
+      return;
+    }
+    setInvoices((prev) => prev.map((inv) => (inv.id === selected.id ? { ...inv, items: editingItems } : inv)));
+    setEditingItems(null);
+    toast(`${t("docs.editItems")} ✓`);
+  }
 
   // Expense form
   const expenseForm = useForm<ExpenseForm>({
@@ -259,7 +270,7 @@ export default function FinancePage() {
               <DataTable
                 data={filteredInvoices}
                 columns={invoiceColumns}
-                onRowClick={setSelected}
+                onRowClick={(inv) => setSelectedId(inv.id)}
                 toolbar={
                   <Select value={invoiceFilter} onChange={(e) => setInvoiceFilter(e.target.value as "all" | InvoiceStatus)} className="w-44">
                     <option value="all">{t("common.all")}</option>
@@ -295,78 +306,40 @@ export default function FinancePage() {
         </TabsContent>
       </Tabs>
 
-      {/* Invoice detail */}
+      {/* Premium A4 invoice view */}
       {selected ? (
-        <Dialog open onClose={() => setSelected(null)} title={`${selected.number} — ${clientName(selected.clientId)}`} wide
+        <DocumentSheet
+          doc={fromInvoice(selected)}
+          onClose={() => setSelectedId(null)}
+          onEditItems={selected.status !== "paid" ? () => setEditingItems(selected.items.map((i) => ({ ...i }))) : undefined}
+          actions={
+            selected.status !== "paid" ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => toast(`${t("finance.sendReminder")} ✓`, "info")}>
+                  <Banknote className="h-4 w-4" />
+                  {t("finance.sendReminder")}
+                </Button>
+                <Button size="sm" onClick={() => markPaid(selected.id)}>
+                  <BadgeCheck className="h-4 w-4" />
+                  {t("finance.markPaid")}
+                </Button>
+              </>
+            ) : null
+          }
+        />
+      ) : null}
+
+      {/* Edit invoice items */}
+      {selected && editingItems ? (
+        <Dialog open onClose={() => setEditingItems(null)} title={`${t("docs.editItems")} — ${selected.number}`} wide
           footer={
             <>
-              {selected.status !== "paid" ? (
-                <>
-                  <Button variant="outline" onClick={() => { toast(`${t("finance.sendReminder")} ✓`, "info"); }}>
-                    <Banknote className="h-4 w-4" />
-                    {t("finance.sendReminder")}
-                  </Button>
-                  <Button onClick={() => markPaid(selected.id)}>
-                    <BadgeCheck className="h-4 w-4" />
-                    {t("finance.markPaid")}
-                  </Button>
-                </>
-              ) : null}
-              <Button variant="ghost" onClick={() => window.print()}>
-                <Printer className="h-4 w-4" />
-                {t("common.exportPdf")}
-              </Button>
+              <Button variant="outline" onClick={() => setEditingItems(null)}>{t("common.cancel")}</Button>
+              <Button onClick={saveEditedItems}>{t("common.save")}</Button>
             </>
           }
         >
-          <p className="mb-2 text-xs font-bold text-ink-3 uppercase">{t("finance.billTo")}</p>
-          <DocumentClientHeader clientId={selected.clientId} />
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-xs text-ink-3 tabular-nums">
-              {t("finance.issueDate")}: {formatDate(selected.issueDate, locale)} · {t("common.dueDate")}: {formatDate(selected.dueDate, locale)}
-            </p>
-            <StatusBadge status={selected.status} />
-          </div>
-          <table className="mt-4 w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-[11px] font-bold text-ink-3 uppercase">
-                <th className="py-2 text-start">{t("common.description")}</th>
-                <th className="py-2 text-center">{t("finance.qty")}</th>
-                <th className="py-2 text-end">{t("finance.unitPrice")}</th>
-                <th className="py-2 text-end">{t("common.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selected.items.map((item, i) => (
-                <tr key={i} className="border-b border-border/60">
-                  <td className="py-2.5 text-ink">{item.description}</td>
-                  <td className="py-2.5 text-center text-ink-2 tabular-nums">{formatNumber(item.qty, locale)}</td>
-                  <td className="py-2.5 text-end text-ink-2 tabular-nums">{formatCurrency(item.unitPrice, locale)}</td>
-                  <td className="py-2.5 text-end font-semibold text-ink tabular-nums">{formatCurrency(item.qty * item.unitPrice, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-4 ms-auto w-60 space-y-1.5 text-sm">
-            <p className="flex justify-between text-ink-2">
-              <span>{t("common.subtotal")}</span>
-              <span className="tabular-nums">{formatCurrency(invoiceSubtotal(selected), locale)}</span>
-            </p>
-            <p className="flex justify-between text-ink-2">
-              <span>{t("common.vat")}</span>
-              <span className="tabular-nums">{formatCurrency(Math.round(invoiceSubtotal(selected) * VAT_RATE), locale)}</span>
-            </p>
-            {selected.paidAmount > 0 ? (
-              <p className="flex justify-between text-success">
-                <span>{t("clients.payments")}</span>
-                <span className="tabular-nums">−{formatCurrency(selected.paidAmount, locale)}</span>
-              </p>
-            ) : null}
-            <p className="flex justify-between border-t border-border pt-2 font-bold text-ink">
-              <span>{t("clients.outstanding")}</span>
-              <span className="tabular-nums">{formatCurrency(invoiceOutstanding(selected), locale)}</span>
-            </p>
-          </div>
+          <LineItemsEditor items={editingItems} onChange={setEditingItems} />
         </Dialog>
       ) : null}
 
@@ -399,23 +372,11 @@ export default function FinancePage() {
           </label>
           <div>
             <p className="mb-2 text-xs font-semibold text-ink-2">{t("finance.items")}</p>
-            <div className="space-y-2">
-              {fields.map((field, i) => (
-                <div key={field.id} className="flex items-start gap-2">
-                  <Input placeholder={t("common.description")} className="flex-1" {...invoiceForm.register(`items.${i}.description`)} />
-                  <Input type="number" min={1} className="w-20" dir="ltr" {...invoiceForm.register(`items.${i}.qty`)} />
-                  <Input type="number" min={0} className="w-28" dir="ltr" {...invoiceForm.register(`items.${i}.unitPrice`)} />
-                  <Button variant="ghost" size="icon" type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={t("common.delete")}>
-                    <Trash2 className="h-4 w-4 text-danger" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" size="sm" type="button" className="mt-2" onClick={() => append({ description: "", qty: 1, unitPrice: 0 })}>
-              <Plus className="h-3.5 w-3.5" />
-              {t("common.add")}
-            </Button>
+            <LineItemsEditor items={formItems} onChange={setFormItems} />
           </div>
+          <Field label={t("common.notes")}>
+            <Input {...invoiceForm.register("notes")} />
+          </Field>
         </form>
       </Dialog>
 

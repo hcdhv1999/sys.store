@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeftRight, CheckCircle2, FilePlus2, FileText, Plus, Printer, Send, Trash2, XCircle } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, FilePlus2, FileText, Send, XCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,16 +13,18 @@ import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Field, Input, Select } from "@/components/ui/input";
+import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/badge";
-import { DocumentClientHeader } from "@/components/document-client-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useQuotations } from "@/hooks/use-data";
-import { clientName, invoiceSubtotal, invoiceTotal, quotesSummary, VAT_RATE } from "@/lib/data/queries";
+import { clientName, invoiceTotal, quotesSummary } from "@/lib/data/queries";
 import { TENANT_ID } from "@/lib/data/seed";
-import type { Quotation, QuoteStatus } from "@/types";
+import { DocumentSheet } from "@/features/documents/document-sheet";
+import { fromQuotation, quotationToInvoiceDraft } from "@/features/documents/model";
+import { emptyItem, itemsValid, LineItemsEditor } from "@/features/documents/line-items-editor";
+import type { InvoiceItem, Quotation, QuoteStatus } from "@/types";
 
 const columnHelper = createColumnHelper<Quotation>();
 
@@ -30,13 +32,7 @@ const quoteSchema = z.object({
   clientId: z.string().min(1),
   title: z.string().min(3),
   validUntil: z.string().min(8),
-  items: z.array(
-    z.object({
-      description: z.string().min(2),
-      qty: z.coerce.number().positive(),
-      unitPrice: z.coerce.number().positive(),
-    }),
-  ).min(1),
+  notes: z.string().optional(),
 });
 type QuoteForm = z.infer<typeof quoteSchema>;
 
@@ -49,8 +45,10 @@ export default function QuotationsPage() {
   const [quotes, setQuotes] = useState<Quotation[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | QuoteStatus>("all");
-  const [selected, setSelected] = useState<Quotation | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [formItems, setFormItems] = useState<InvoiceItem[]>([emptyItem()]);
+  const [editingItems, setEditingItems] = useState<InvoiceItem[] | null>(null);
 
   useEffect(() => {
     if (!isLoading && !hydrated) {
@@ -61,11 +59,18 @@ export default function QuotationsPage() {
 
   const summary = quotesSummary();
   const filtered = statusFilter === "all" ? quotes : quotes.filter((q) => q.status === statusFilter);
+  const selected = quotes.find((q) => q.id === selectedId) ?? null;
 
   function setStatus(id: string, status: QuoteStatus, message: string) {
     setQuotes((prev) => prev.map((q) => (q.id === id ? { ...q, status } : q)));
-    setSelected((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     toast(message);
+  }
+
+  function convertToInvoice(quote: Quotation) {
+    const dueDate = new Date(Date.now() + 14 * 86400_000).toISOString().slice(0, 10);
+    const draft = quotationToInvoiceDraft(quote, `INV-2026-${String(60 + quotes.length)}`, dueDate);
+    toast(`${t("quotes.convertToInvoice")}: ${draft.number} ✓`);
+    setSelectedId(null);
   }
 
   const columns = useMemo<ColumnDef<Quotation, unknown>[]>(
@@ -105,16 +110,15 @@ export default function QuotationsPage() {
   const {
     register,
     handleSubmit,
-    control,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<QuoteForm>({
-    resolver: zodResolver(quoteSchema),
-    defaultValues: { items: [{ description: "", qty: 1, unitPrice: 0 }] },
-  });
-  const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  } = useForm<QuoteForm>({ resolver: zodResolver(quoteSchema) });
 
   const onCreate = handleSubmit((values) => {
+    if (!itemsValid(formItems)) {
+      toast(t("common.invalidValue"), "error");
+      return;
+    }
     const number = `QT-2026-${String(20 + quotes.length + 1).padStart(3, "0")}`;
     setQuotes((prev) => [
       {
@@ -126,14 +130,26 @@ export default function QuotationsPage() {
         status: "draft",
         issueDate: new Date().toISOString().slice(0, 10),
         validUntil: values.validUntil,
-        items: values.items,
+        items: formItems,
+        notes: values.notes,
       },
       ...prev,
     ]);
-    reset({ items: [{ description: "", qty: 1, unitPrice: 0 }] });
+    reset();
+    setFormItems([emptyItem()]);
     setFormOpen(false);
     toast(`${t("quotes.newQuote")}: ${number} ✓`);
   });
+
+  function saveEditedItems() {
+    if (!selected || !editingItems || !itemsValid(editingItems)) {
+      toast(t("common.invalidValue"), "error");
+      return;
+    }
+    setQuotes((prev) => prev.map((q) => (q.id === selected.id ? { ...q, items: editingItems } : q)));
+    setEditingItems(null);
+    toast(`${t("docs.editItems")} ✓`);
+  }
 
   return (
     <div className="animate-fade-up">
@@ -162,7 +178,7 @@ export default function QuotationsPage() {
           <DataTable
             data={filtered}
             columns={columns}
-            onRowClick={setSelected}
+            onRowClick={(q) => setSelectedId(q.id)}
             toolbar={
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | QuoteStatus)} className="w-44">
                 <option value="all">{t("common.all")}</option>
@@ -175,90 +191,54 @@ export default function QuotationsPage() {
         )}
       </Card>
 
-      {/* Quote detail */}
+      {/* Premium A4 document view */}
       {selected ? (
-        <Dialog open onClose={() => setSelected(null)} title={`${selected.number} — ${clientName(selected.clientId)}`} wide
-          footer={
+        <DocumentSheet
+          doc={fromQuotation(selected)}
+          onClose={() => setSelectedId(null)}
+          onEditItems={() => setEditingItems(selected.items.map((i) => ({ ...i })))}
+          actions={
             <>
               {selected.status === "draft" ? (
-                <Button variant="outline" onClick={() => setStatus(selected.id, "sent", `${t("common.send")} ✓`)}>
+                <Button variant="outline" size="sm" onClick={() => setStatus(selected.id, "sent", `${t("common.send")} ✓`)}>
                   <Send className="h-4 w-4" />
                   {t("common.send")}
                 </Button>
               ) : null}
               {selected.status === "sent" ? (
                 <>
-                  <Button variant="danger" onClick={() => setStatus(selected.id, "rejected", t("status.rejected"))}>
+                  <Button variant="danger" size="sm" onClick={() => setStatus(selected.id, "rejected", t("status.rejected"))}>
                     <XCircle className="h-4 w-4" />
                     {t("quotes.reject")}
                   </Button>
-                  <Button onClick={() => setStatus(selected.id, "approved", t("status.approved"))}>
+                  <Button size="sm" onClick={() => setStatus(selected.id, "approved", t("status.approved"))}>
                     <CheckCircle2 className="h-4 w-4" />
                     {t("quotes.approve")}
                   </Button>
                 </>
               ) : null}
               {selected.status === "approved" ? (
-                <>
-                  <Button variant="outline" onClick={() => { toast(`${t("quotes.convertToProject")} ✓`); setSelected(null); }}>
-                    {t("quotes.convertToProject")}
-                  </Button>
-                  <Button onClick={() => { toast(`${t("quotes.convertToInvoice")} ✓`); setSelected(null); }}>
-                    {t("quotes.convertToInvoice")}
-                  </Button>
-                </>
+                <Button size="sm" onClick={() => convertToInvoice(selected)}>
+                  <ArrowLeftRight className="h-4 w-4" />
+                  {t("quotes.convertToInvoice")}
+                </Button>
               ) : null}
-              <Button variant="ghost" onClick={() => window.print()}>
-                <Printer className="h-4 w-4" />
-                {t("common.exportPdf")}
-              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {/* Edit items */}
+      {selected && editingItems ? (
+        <Dialog open onClose={() => setEditingItems(null)} title={`${t("docs.editItems")} — ${selected.number}`} wide
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setEditingItems(null)}>{t("common.cancel")}</Button>
+              <Button onClick={saveEditedItems}>{t("common.save")}</Button>
             </>
           }
         >
-          <DocumentClientHeader clientId={selected.clientId} />
-          <div className="mt-3 flex items-center justify-between">
-            <div>
-              <p className="text-base font-bold text-ink">{selected.title}</p>
-              <p className="mt-0.5 text-xs text-ink-3 tabular-nums">
-                {formatDate(selected.issueDate, locale)} → {formatDate(selected.validUntil, locale)}
-              </p>
-            </div>
-            <StatusBadge status={selected.status} />
-          </div>
-          <table className="mt-4 w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-[11px] font-bold text-ink-3 uppercase">
-                <th className="py-2 text-start">{t("common.description")}</th>
-                <th className="py-2 text-center">{t("finance.qty")}</th>
-                <th className="py-2 text-end">{t("finance.unitPrice")}</th>
-                <th className="py-2 text-end">{t("common.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selected.items.map((item, i) => (
-                <tr key={i} className="border-b border-border/60">
-                  <td className="py-2.5 text-ink">{item.description}</td>
-                  <td className="py-2.5 text-center text-ink-2 tabular-nums">{formatNumber(item.qty, locale)}</td>
-                  <td className="py-2.5 text-end text-ink-2 tabular-nums">{formatCurrency(item.unitPrice, locale)}</td>
-                  <td className="py-2.5 text-end font-semibold text-ink tabular-nums">{formatCurrency(item.qty * item.unitPrice, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-4 ms-auto w-56 space-y-1.5 text-sm">
-            <p className="flex justify-between text-ink-2">
-              <span>{t("common.subtotal")}</span>
-              <span className="tabular-nums">{formatCurrency(invoiceSubtotal(selected), locale)}</span>
-            </p>
-            <p className="flex justify-between text-ink-2">
-              <span>{t("common.vat")}</span>
-              <span className="tabular-nums">{formatCurrency(Math.round(invoiceSubtotal(selected) * VAT_RATE), locale)}</span>
-            </p>
-            <p className="flex justify-between border-t border-border pt-2 font-bold text-ink">
-              <span>{t("common.total")}</span>
-              <span className="tabular-nums">{formatCurrency(invoiceTotal(selected), locale)}</span>
-            </p>
-          </div>
+          <LineItemsEditor items={editingItems} onChange={setEditingItems} />
         </Dialog>
       ) : null}
 
@@ -288,27 +268,13 @@ export default function QuotationsPage() {
           <Field label={t("common.name")} error={errors.title && t("common.invalidValue")}>
             <Input {...register("title")} />
           </Field>
-
           <div>
             <p className="mb-2 text-xs font-semibold text-ink-2">{t("finance.items")}</p>
-            <div className="space-y-2">
-              {fields.map((field, i) => (
-                <div key={field.id} className="flex items-start gap-2">
-                  <Input placeholder={t("common.description")} className="flex-1" {...register(`items.${i}.description`)} />
-                  <Input type="number" min={1} placeholder={t("finance.qty")} className="w-20" dir="ltr" {...register(`items.${i}.qty`)} />
-                  <Input type="number" min={0} placeholder={t("finance.unitPrice")} className="w-28" dir="ltr" {...register(`items.${i}.unitPrice`)} />
-                  <Button variant="ghost" size="icon" type="button" onClick={() => remove(i)} disabled={fields.length === 1} aria-label={t("common.delete")}>
-                    <Trash2 className="h-4 w-4 text-danger" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            {errors.items ? <p className="mt-1 text-xs text-danger">{t("common.invalidValue")}</p> : null}
-            <Button variant="outline" size="sm" type="button" className="mt-2" onClick={() => append({ description: "", qty: 1, unitPrice: 0 })}>
-              <Plus className="h-3.5 w-3.5" />
-              {t("common.add")}
-            </Button>
+            <LineItemsEditor items={formItems} onChange={setFormItems} />
           </div>
+          <Field label={t("common.notes")}>
+            <Textarea rows={2} {...register("notes")} />
+          </Field>
         </form>
       </Dialog>
     </div>

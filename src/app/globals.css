@@ -187,3 +187,44 @@ body {
     display: none !important;
   }
 }
+
+/* ── A4 document printing ───────────────────────────────────────────── */
+@page {
+  size: A4;
+  /* The sheet carries its own gutters so browser print and headless
+     PDF generation produce identical pages. */
+  margin: 0;
+}
+
+@media print {
+  /* When a document sheet is open, print only the sheet */
+  body.doc-printing * {
+    visibility: hidden;
+  }
+  body.doc-printing .doc-sheet,
+  body.doc-printing .doc-sheet * {
+    visibility: visible;
+  }
+  body.doc-printing .doc-sheet {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    min-height: auto !important;
+  }
+  .doc-sheet {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .doc-sheet thead {
+    display: table-header-group;
+  }
+  .doc-sheet .doc-row,
+  .doc-sheet .doc-block {
+    break-inside: avoid;
+  }
+}

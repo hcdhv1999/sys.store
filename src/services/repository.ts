@@ -139,12 +139,16 @@ export async function listInvoices(): Promise<Invoice[]> {
     issueDate: str(r.issue_date),
     dueDate: str(r.due_date),
     items: (r.invoice_items ?? []).map((i: Row) => ({
+      service: str(i.service),
       description: i.description,
       qty: num(i.qty),
       unitPrice: num(i.unit_price),
+      discountPct: num(i.discount_pct),
     })),
     paidAmount: num(r.paid_amount),
     recurring: Boolean(r.recurring),
+    notes: str(r.notes),
+    terms: str(r.terms),
   }));
 }
 
@@ -183,10 +187,14 @@ export async function listQuotations(): Promise<Quotation[]> {
     issueDate: str(r.issue_date),
     validUntil: str(r.valid_until),
     items: (r.quotation_items ?? []).map((i: Row) => ({
+      service: str(i.service),
       description: i.description,
       qty: num(i.qty),
       unitPrice: num(i.unit_price),
+      discountPct: num(i.discount_pct),
     })),
+    notes: str(r.notes),
+    terms: str(r.terms),
   }));
 }
 
