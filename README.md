@@ -1,47 +1,97 @@
-# لوحة متابعة المتاجر — حِرف
+# حِرف — HIRF Platform
 
-لوحة تحكم عربية (RTL) لمتابعة مشاريع بناء المتاجر الإلكترونية: المراحل والمهام،
-بريف العميل الرسمي، وتتبّع الدفعات والمبالغ المتبقية. الواجهة صفحة HTML واحدة
-تتصل بخلفية PHP بسيطة تخزّن البيانات في قاعدة SQLite.
+Production-ready **ERP + CRM SaaS platform** for digital agencies in Saudi Arabia
+and the GCC. Arabic-first (RTL) with full English (LTR) support, light & dark
+mode, and a premium design system.
 
-## الملفات
+## Modules
 
-| الملف | الوصف |
-|------|-------|
-| `index.html` | الواجهة الكاملة (HTML/CSS/JS، بدون أي حزم خارجية). |
-| `api.php` | الواجهة البرمجية: الإجراءات `list` / `save` / `delete`. |
-| `config.php` | مفتاح الحماية `AUTH_KEY` ومسار قاعدة البيانات `DB_PATH`. |
-| `data/` | يُنشأ تلقائيًا ويحوي ملف SQLite (غير مرفوع للمستودع). |
+| | |
+| --- | --- |
+| 📊 Dashboard | KPIs, revenue vs. expenses, service mix, deadlines, activity |
+| 🤝 CRM / Clients | CR & VAT records, contacts, tags, timelines, rollups |
+| 📁 Projects | Milestones, budgets, hours, teams, progress |
+| ✅ Tasks | Drag-and-drop kanban, list & calendar views, labels |
+| 📅 Calendar | Meetings/deadlines/launches, drag to reschedule, agenda |
+| 👥 Team | Departments, roles, attendance, utilization, productivity |
+| 🧾 Quotations | Line items, approvals, convert to project/invoice |
+| 💰 Finance | Invoices (15% VAT), expenses, recurring, cash flow |
+| 📣 Marketing | Meta/Google/TikTok/Snapchat/LinkedIn — ROAS, CPA, CTR, CPC, CPM |
+| 🛍️ Stores | Salla, Zid, Shopify, WooCommerce operations |
+| 🗂️ Files | Folders, versions, storage quota |
+| 🔔 Notifications | In-app center + topbar menu |
+| 📈 Reports | Financial/clients/team/marketing, Excel + PDF export |
+| ⚙️ Settings | Company, branding, users & roles, API keys, security, audit |
 
-## التشغيل محليًا
+## Tech stack
 
-يكفي PHP 7.4+ مع امتداد `pdo_sqlite` (مفعّل افتراضيًا):
+Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
+TanStack Query + Table · React Hook Form + Zod · dnd-kit · Recharts ·
+Supabase (PostgreSQL, Auth, RLS, Storage)
+
+## Getting started
 
 ```bash
-php -S localhost:8000
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-ثم افتح <http://localhost:8000/index.html> في المتصفح.
+The app boots in **demo mode** with a fully seeded Arabic workspace
+(sign in with the pre-filled demo credentials on the login screen).
 
-## النشر على استضافة
+### Connecting Supabase
 
-1. ارفع `index.html` و`api.php` و`config.php` إلى مجلد الموقع.
-2. تأكد أن مجلد المشروع يسمح بإنشاء مجلد `data/` والكتابة فيه.
-3. **غيّر مفتاح الحماية**: اجعل `AUTH_KEY` في `config.php` نصًا سريًا طويلًا،
-   واجعل القيمة نفسها في أعلى `index.html` (ثابت `AUTH_KEY`) مطابقة له تمامًا.
-   ⚠️ استخدم **حروفًا وأرقامًا لاتينية فقط** (بدون حروف عربية)، لأن المفتاح
-   يُرسل ضمن ترويسة HTTP لا تقبل سوى محارف Latin-1؛ المفتاح العربي يكسر الاتصال.
+1. Follow [`supabase/README.md`](supabase/README.md) to create the project,
+   run the migrations (schema → RLS → seed) and configure auth.
+2. `cp .env.example .env.local` and fill in the keys.
+3. Restart — auth and data now run against PostgreSQL with full
+   multi-tenant Row Level Security.
 
-> ملاحظة أمان: مفتاح الحماية يظهر في الواجهة الأمامية، لذا يمنع الوصول العابر
-> فقط. للحماية الجادة ضع اللوحة خلف تسجيل دخول على مستوى الخادم
-> (مثل HTTP Basic Auth).
+## Deploying to Hostinger (Node.js hosting)
 
-## واجهة `api.php`
+1. Push this repository to GitHub and connect it in hPanel, or upload the
+   build output directly.
+2. Build:
+   ```bash
+   npm ci
+   npm run build
+   ```
+3. The build produces a self-contained server in `.next/standalone`
+   (`output: "standalone"` — no Vercel-only features). Deploy these paths:
+   ```
+   .next/standalone/   → app root
+   .next/static/       → .next/static
+   public/             → public
+   ```
+4. Set environment variables from `.env.example` in the hosting panel and
+   start the app with:
+   ```bash
+   node server.js     # honours PORT (defaults to 3000)
+   ```
+5. Point your domain at the Node app (or proxy through Apache/Nginx).
+   Compression, immutable asset caching and security headers are
+   pre-configured in `next.config.ts`.
 
-كل الطلبات تحمل ترويسة `X-Auth-Key` المطابقة لـ `AUTH_KEY`.
+## Scripts
 
-- `GET  api.php?action=list` → `{ "data": [ ...المشاريع ] }`
-- `POST api.php?action=save` (جسم JSON يحوي `id`) → `{ "ok": true }` (إضافة أو تحديث)
-- `GET  api.php?action=delete&id=<id>` → `{ "ok": true }`
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` | Production build (standalone output) |
+| `npm run start` | Serve the production build |
+| `npm run typecheck` | Strict TypeScript check |
 
-يُرجَع الخطأ بصيغة `{ "error": "..." }` مع رمز حالة HTTP مناسب.
+## Project structure
+
+```
+src/
+  app/            # App Router — (auth) public pages, (app) workspace
+  components/     # ui/ (design system) · layout/ · charts/ · providers/
+  features/       # feature-scoped composites (clients, projects, tasks…)
+  hooks/          # TanStack Query data hooks
+  lib/            # i18n, formatting, seed data, utils, constants
+  services/       # auth + repositories (Supabase ⇄ demo fallback)
+  types/          # domain model
+supabase/
+  migrations/     # schema, RLS policies, seed
+```

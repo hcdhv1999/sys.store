@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── HIRF design tokens ─────────────────────────────────────────────── */
+:root {
+  --background: #fcf6f6;
+  --surface: #ffffff;
+  --surface-2: #faf5f0;
+  --border: #e7dfdf;
+  --primary: #2e4f4f;
+  --primary-hover: #244040;
+  --primary-foreground: #ffffff;
+  --accent: #d88935;
+  --accent-hover: #c67824;
+  --accent-foreground: #ffffff;
+  --text-primary: #1f2b2b;
+  --text-secondary: #5d7070;
+  --text-muted: #8fa0a0;
+  --success: #1e8e5a;
+  --success-bg: #e3f4ec;
+  --warning: #b97609;
+  --warning-bg: #fdf1da;
+  --danger: #d64545;
+  --danger-bg: #fbe7e7;
+  --info: #3b6ea5;
+  --info-bg: #e7eff8;
+  --ring: #d88935;
+  /* categorical chart palette — validated (light, CVD-safe) */
+  --chart-1: #0e8a78;
+  --chart-2: #d07c2c;
+  --chart-3: #7b74d6;
+  --chart-4: #c0568e;
+  --chart-5: #55832f;
+  --chart-grid: #ece4e4;
+  --sidebar: #2e4f4f;
+  --sidebar-foreground: #d7e2e2;
+  --sidebar-active: rgba(216, 137, 53, 0.16);
+  --shadow-soft: 0 1px 2px rgb(31 43 43 / 0.04), 0 4px 16px rgb(31 43 43 / 0.06);
+  --shadow-pop: 0 4px 12px rgb(31 43 43 / 0.08), 0 12px 32px rgb(31 43 43 / 0.12);
+}
+
+.dark {
+  --background: #131b1b;
+  --surface: #1e2a29;
+  --surface-2: #24312f;
+  --border: #31403e;
+  --primary: #6fa3a0;
+  --primary-hover: #86b5b2;
+  --primary-foreground: #10201f;
+  --accent: #e09a4d;
+  --accent-hover: #eaab63;
+  --accent-foreground: #241503;
+  --text-primary: #e8efee;
+  --text-secondary: #9fb3b1;
+  --text-muted: #6c8280;
+  --success: #4cc088;
+  --success-bg: rgba(30, 142, 90, 0.18);
+  --warning: #f0b95c;
+  --warning-bg: rgba(245, 166, 35, 0.15);
+  --danger: #e57373;
+  --danger-bg: rgba(214, 69, 69, 0.16);
+  --info: #7aa7d4;
+  --info-bg: rgba(59, 110, 165, 0.18);
+  --ring: #e09a4d;
+  /* categorical chart palette — validated (dark, CVD-safe) */
+  --chart-1: #29a38e;
+  --chart-2: #cc8130;
+  --chart-3: #8f88de;
+  --chart-4: #c96b9e;
+  --chart-5: #7ba34a;
+  --chart-grid: #2b3a38;
+  --sidebar: #182322;
+  --sidebar-foreground: #b9c9c8;
+  --sidebar-active: rgba(224, 154, 77, 0.14);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.2), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.4);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ink: var(--text-primary);
+  --color-ink-2: var(--text-secondary);
+  --color-ink-3: var(--text-muted);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --radius-2xl: 1rem;
+  --font-sans: var(--font-inter), var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --shadow-soft: var(--shadow-soft);
+  --shadow-pop: var(--shadow-pop);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+[dir="rtl"] body {
+  font-family: var(--font-arabic), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(216, 137, 53, 0.25);
+}
+
+/* Slim, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Subtle glass morphism for elevated bars */
+.glass {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+}
+
+/* Keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Recharts theming */
+.recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+.recharts-text {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+.recharts-default-tooltip {
+  border-radius: 12px !important;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.35s ease both;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

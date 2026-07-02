@@ -1,10 +1,33 @@
-# قاعدة بيانات SQLite وملفاتها (لا تُرفع للمستودع)
-/data/
-*.sqlite
-*.sqlite-journal
-*.sqlite-wal
-*.sqlite-shm
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
 
-# ملفات النظام
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
 .DS_Store
 Thumbs.db
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — never commit secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# typescript
+*.tsbuildinfo
