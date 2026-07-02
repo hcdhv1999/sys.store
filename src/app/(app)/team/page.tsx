@@ -203,19 +203,19 @@ export default function TeamPage() {
         }
       >
         <form onSubmit={onCreate} className="grid gap-4 sm:grid-cols-2" noValidate>
-          <Field label={t("common.name")} error={errors.name && t("common.noResultsHint")} className="sm:col-span-2">
+          <Field label={t("common.name")} error={errors.name && t("common.invalidValue")} className="sm:col-span-2">
             <Input {...register("name")} />
           </Field>
-          <Field label={t("common.email")} error={errors.email && t("common.noResultsHint")}>
+          <Field label={t("common.email")} error={errors.email && t("common.invalidValue")}>
             <Input type="email" dir="ltr" {...register("email")} />
           </Field>
-          <Field label={t("common.phone")} error={errors.phone && t("common.noResultsHint")}>
+          <Field label={t("common.phone")} error={errors.phone && t("common.invalidValue")}>
             <Input dir="ltr" {...register("phone")} />
           </Field>
-          <Field label={t("team.jobTitle")} error={errors.jobTitle && t("common.noResultsHint")}>
+          <Field label={t("team.jobTitle")} error={errors.jobTitle && t("common.invalidValue")}>
             <Input {...register("jobTitle")} />
           </Field>
-          <Field label={t("common.department")} error={errors.departmentId && t("common.noResultsHint")}>
+          <Field label={t("common.department")} error={errors.departmentId && t("common.invalidValue")}>
             <Select {...register("departmentId")}>
               <option value="">—</option>
               {departments.map((d) => (

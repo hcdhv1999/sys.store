@@ -248,7 +248,7 @@ export function DonutChart({
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <ul className="w-full space-y-2">
+      <ul className="min-w-0 w-full flex-1 space-y-2">
         {data.map((d, i) => (
           <li key={d.name} className="flex items-center justify-between gap-3 text-xs">
             <span className="flex min-w-0 items-center gap-2 text-ink-2">

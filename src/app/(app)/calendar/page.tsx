@@ -293,7 +293,7 @@ export default function CalendarPage() {
         }
       >
         <form onSubmit={onCreate} className="space-y-4" noValidate>
-          <Field label={t("common.name")} error={errors.title && t("common.noResultsHint")}>
+          <Field label={t("common.name")} error={errors.title && t("common.invalidValue")}>
             <Input {...register("title")} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -304,10 +304,10 @@ export default function CalendarPage() {
                 ))}
               </Select>
             </Field>
-            <Field label={t("common.date")} error={errors.date && t("common.noResultsHint")}>
+            <Field label={t("common.date")} error={errors.date && t("common.invalidValue")}>
               <Input type="date" dir="ltr" {...register("date")} />
             </Field>
-            <Field label={locale === "ar" ? "الوقت" : "Time"} error={errors.time && t("common.noResultsHint")}>
+            <Field label={locale === "ar" ? "الوقت" : "Time"} error={errors.time && t("common.invalidValue")}>
               <Input type="time" dir="ltr" {...register("time")} />
             </Field>
             <Field label={locale === "ar" ? "المدة (دقائق)" : "Duration (min)"}>

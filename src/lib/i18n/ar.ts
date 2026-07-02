@@ -64,6 +64,7 @@ export const ar: Record<MessageKey, string> = {
   "common.budget": "الميزانية",
   "common.spent": "المصروف",
   "common.tags": "الوسوم",
+  "common.invalidValue": "يرجى إدخال قيمة صحيحة",
   "common.noResults": "لا توجد نتائج",
   "common.noResultsHint": "جرّب تعديل البحث أو عوامل التصفية.",
   "common.showing": "عرض",

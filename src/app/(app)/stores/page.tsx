@@ -87,7 +87,7 @@ export default function StoresPage() {
     toast(`${t("stores.addStore")}: ${values.name} ✓`);
   });
 
-  const err = (k: keyof StoreForm) => (errors[k] ? t("common.noResultsHint") : undefined);
+  const err = (k: keyof StoreForm) => (errors[k] ? t("common.invalidValue") : undefined);
 
   return (
     <div className="animate-fade-up">

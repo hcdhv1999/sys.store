@@ -214,8 +214,8 @@ export default function FinancePage() {
     toast(`${t("finance.newExpense")} ✓`);
   });
 
-  const errI = (k: "clientId" | "dueDate") => (invoiceForm.formState.errors[k] ? t("common.noResultsHint") : undefined);
-  const errE = (k: keyof ExpenseForm) => (expenseForm.formState.errors[k] ? t("common.noResultsHint") : undefined);
+  const errI = (k: "clientId" | "dueDate") => (invoiceForm.formState.errors[k] ? t("common.invalidValue") : undefined);
+  const errE = (k: keyof ExpenseForm) => (expenseForm.formState.errors[k] ? t("common.invalidValue") : undefined);
 
   return (
     <div className="animate-fade-up">

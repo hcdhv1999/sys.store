@@ -151,7 +151,7 @@ export default function MarketingPage() {
     toast(`${t("marketing.newCampaign")}: ${values.name} ✓`);
   });
 
-  const err = (k: keyof CampaignForm) => (errors[k] ? t("common.noResultsHint") : undefined);
+  const err = (k: keyof CampaignForm) => (errors[k] ? t("common.invalidValue") : undefined);
 
   return (
     <div className="animate-fade-up">

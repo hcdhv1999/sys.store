@@ -68,7 +68,7 @@ export function ProjectFormDialog({
     onClose();
   });
 
-  const err = (k: keyof FormValues) => (errors[k] ? t("common.noResultsHint") : undefined);
+  const err = (k: keyof FormValues) => (errors[k] ? t("common.invalidValue") : undefined);
 
   return (
     <Dialog open={open} onClose={onClose} title={t("projects.addProject")} wide

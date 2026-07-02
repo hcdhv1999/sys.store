@@ -238,11 +238,11 @@ export default function FilesPage() {
         }
       >
         <form onSubmit={onUpload} className="space-y-4" noValidate>
-          <Field label={t("common.name")} error={errors.name && t("common.noResultsHint")}>
+          <Field label={t("common.name")} error={errors.name && t("common.invalidValue")}>
             <Input placeholder="عرض-الخدمات-2026.pdf" {...register("name")} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("files.folders")} error={errors.folder && t("common.noResultsHint")}>
+            <Field label={t("files.folders")} error={errors.folder && t("common.invalidValue")}>
               <Select {...register("folder")}>
                 <option value="">—</option>
                 {folders.map((folder) => (
@@ -250,7 +250,7 @@ export default function FilesPage() {
                 ))}
               </Select>
             </Field>
-            <Field label={t("files.size")} error={errors.sizeMB && t("common.noResultsHint")}>
+            <Field label={t("files.size")} error={errors.sizeMB && t("common.invalidValue")}>
               <Input type="number" min={0.1} step={0.1} dir="ltr" {...register("sizeMB")} />
             </Field>
           </div>

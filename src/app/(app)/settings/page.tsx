@@ -154,19 +154,19 @@ export default function SettingsPage() {
           <Card className="max-w-2xl">
             <CardBody>
               <form onSubmit={onSaveCompany} className="grid gap-4 sm:grid-cols-2" noValidate>
-                <Field label={t("settings.companyName")} error={companyForm.formState.errors.name && t("common.noResultsHint")}>
+                <Field label={t("settings.companyName")} error={companyForm.formState.errors.name && t("common.invalidValue")}>
                   <Input {...companyForm.register("name")} />
                 </Field>
-                <Field label={t("settings.companyNameEn")} error={companyForm.formState.errors.nameEn && t("common.noResultsHint")}>
+                <Field label={t("settings.companyNameEn")} error={companyForm.formState.errors.nameEn && t("common.invalidValue")}>
                   <Input dir="ltr" {...companyForm.register("nameEn")} />
                 </Field>
-                <Field label={t("clients.cr")} error={companyForm.formState.errors.cr && t("common.noResultsHint")}>
+                <Field label={t("clients.cr")} error={companyForm.formState.errors.cr && t("common.invalidValue")}>
                   <Input dir="ltr" maxLength={10} {...companyForm.register("cr")} />
                 </Field>
-                <Field label={t("clients.vatNumber")} error={companyForm.formState.errors.vatNumber && t("common.noResultsHint")}>
+                <Field label={t("clients.vatNumber")} error={companyForm.formState.errors.vatNumber && t("common.invalidValue")}>
                   <Input dir="ltr" maxLength={15} {...companyForm.register("vatNumber")} />
                 </Field>
-                <Field label={t("common.city")} error={companyForm.formState.errors.city && t("common.noResultsHint")}>
+                <Field label={t("common.city")} error={companyForm.formState.errors.city && t("common.invalidValue")}>
                   <Input {...companyForm.register("city")} />
                 </Field>
                 <div className="flex items-end">
@@ -451,7 +451,7 @@ export default function SettingsPage() {
         }
       >
         <form onSubmit={onInvite} className="space-y-4" noValidate>
-          <Field label={t("common.email")} error={inviteForm.formState.errors.email && t("common.noResultsHint")}>
+          <Field label={t("common.email")} error={inviteForm.formState.errors.email && t("common.invalidValue")}>
             <Input type="email" dir="ltr" {...inviteForm.register("email")} />
           </Field>
           <Field label={t("common.role")}>

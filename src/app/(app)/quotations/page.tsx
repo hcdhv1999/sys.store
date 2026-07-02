@@ -271,7 +271,7 @@ export default function QuotationsPage() {
       >
         <form onSubmit={onCreate} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("common.client")} error={errors.clientId && t("common.noResultsHint")}>
+            <Field label={t("common.client")} error={errors.clientId && t("common.invalidValue")}>
               <Select {...register("clientId")}>
                 <option value="">—</option>
                 {clients.map((c) => (
@@ -279,11 +279,11 @@ export default function QuotationsPage() {
                 ))}
               </Select>
             </Field>
-            <Field label={t("quotes.validUntil")} error={errors.validUntil && t("common.noResultsHint")}>
+            <Field label={t("quotes.validUntil")} error={errors.validUntil && t("common.invalidValue")}>
               <Input type="date" dir="ltr" {...register("validUntil")} />
             </Field>
           </div>
-          <Field label={t("common.name")} error={errors.title && t("common.noResultsHint")}>
+          <Field label={t("common.name")} error={errors.title && t("common.invalidValue")}>
             <Input {...register("title")} />
           </Field>
 
@@ -301,7 +301,7 @@ export default function QuotationsPage() {
                 </div>
               ))}
             </div>
-            {errors.items ? <p className="mt-1 text-xs text-danger">{t("common.noResultsHint")}</p> : null}
+            {errors.items ? <p className="mt-1 text-xs text-danger">{t("common.invalidValue")}</p> : null}
             <Button variant="outline" size="sm" type="button" className="mt-2" onClick={() => append({ description: "", qty: 1, unitPrice: 0 })}>
               <Plus className="h-3.5 w-3.5" />
               {t("common.add")}

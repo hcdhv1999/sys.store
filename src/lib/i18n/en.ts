@@ -62,6 +62,7 @@ export const en = {
   "common.budget": "Budget",
   "common.spent": "Spent",
   "common.tags": "Tags",
+  "common.invalidValue": "Please enter a valid value",
   "common.noResults": "No results found",
   "common.noResultsHint": "Try adjusting the search or filters.",
   "common.showing": "Showing",
