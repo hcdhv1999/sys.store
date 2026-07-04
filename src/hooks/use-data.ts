@@ -26,3 +26,4 @@ export const useCampaigns = makeHook("campaigns", repo.listCampaigns);
 export const useStores = makeHook("stores", repo.listStores);
 export const useEmployees = makeHook("employees", repo.listEmployees);
 export const useNotifications = makeHook("notifications", repo.listNotifications);
+export const useCatalog = makeHook("catalog", repo.listCatalog);

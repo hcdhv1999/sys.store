@@ -20,6 +20,7 @@ export const ar: Record<MessageKey, string> = {
   "nav.reports": "التقارير",
   "nav.notifications": "الإشعارات",
   "nav.settings": "الإعدادات",
+  "nav.catalog": "المنتجات والخدمات",
   "nav.workspace": "مساحة العمل",
   "nav.management": "الإدارة",
   "nav.logout": "تسجيل الخروج",
@@ -65,6 +66,7 @@ export const ar: Record<MessageKey, string> = {
   "common.spent": "المصروف",
   "common.tags": "الوسوم",
   "common.invalidValue": "يرجى إدخال قيمة صحيحة",
+  "common.optionalMark": "اختياري",
   "common.noResults": "لا توجد نتائج",
   "common.noResultsHint": "جرّب تعديل البحث أو عوامل التصفية.",
   "common.showing": "عرض",
@@ -394,6 +396,28 @@ export const ar: Record<MessageKey, string> = {
   "auth.demoHint": "مساحة عمل تجريبية — استخدم البيانات المعبأة مسبقًا",
   "auth.invalid": "بريد إلكتروني أو كلمة مرور غير صحيحة",
   "auth.linkSent": "إذا كان هناك حساب بهذا البريد، فسيصلك رابط إعادة التعيين.",
+
+  // Catalog
+  "catalog.title": "المنتجات والخدمات",
+  "catalog.subtitle": "كل ما تبيعه، مسعّر مرة واحدة ويُعاد استخدامه في كل مكان",
+  "catalog.addItem": "إضافة عنصر",
+  "catalog.product": "منتج",
+  "catalog.service": "خدمة",
+  "catalog.kind": "النوع",
+  "catalog.category": "الفئة",
+  "catalog.sku": "رمز العنصر",
+  "catalog.unit": "الوحدة",
+  "catalog.price": "السعر",
+  "catalog.cost": "التكلفة",
+  "catalog.margin": "هامش الربح",
+  "catalog.vatApplicable": "خاضع للضريبة",
+  "catalog.vatExempt": "معفى",
+  "catalog.fromCatalog": "إضافة من الكتالوج…",
+  "catalog.activeOnly": "النشط فقط",
+
+  // Settings — freelance identity
+  "settings.freelanceLicense": "وثيقة العمل الحر",
+  "settings.legalFreelance": "منشأة عمل حر",
 
   // Sales documents (quotations & invoices)
   "docs.quotation": "عرض سعر",

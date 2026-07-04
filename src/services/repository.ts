@@ -10,6 +10,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/client";
 import * as seed from "@/lib/data/seed";
 import type {
   AppNotification,
+  CatalogItem,
   Campaign,
   Client,
   Employee,
@@ -291,5 +292,26 @@ export async function listNotifications(): Promise<AppNotification[]> {
     createdAt: str(r.created_at),
     read: Boolean(r.read),
     href: str(r.href) || "/dashboard",
+  }));
+}
+
+export async function listCatalog(): Promise<CatalogItem[]> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return seed.catalog;
+  const { data, error } = await supabase.from("catalog_items").select("*").order("name");
+  if (error) throw error;
+  return (data as Row[]).map((r) => ({
+    id: r.id,
+    tenantId: r.tenant_id,
+    kind: r.kind,
+    name: r.name,
+    category: str(r.category),
+    sku: str(r.sku),
+    unit: str(r.unit),
+    price: num(r.price),
+    cost: num(r.cost),
+    vatApplicable: Boolean(r.vat_applicable),
+    active: Boolean(r.active),
+    description: str(r.description),
   }));
 }

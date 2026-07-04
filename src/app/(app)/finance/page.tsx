@@ -19,7 +19,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { useClients, useExpenses, useInvoices } from "@/hooks/use-data";
+import { useCatalog, useClients, useExpenses, useInvoices } from "@/hooks/use-data";
 import {
   clientName,
   expensesByCategory,
@@ -61,6 +61,7 @@ export default function FinancePage() {
   const { data: fetchedInvoices, isLoading: invoicesLoading } = useInvoices();
   const { data: fetchedExpenses, isLoading: expensesLoading } = useExpenses();
   const { data: clients } = useClients();
+  const { data: catalog } = useCatalog();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -339,7 +340,7 @@ export default function FinancePage() {
             </>
           }
         >
-          <LineItemsEditor items={editingItems} onChange={setEditingItems} />
+          <LineItemsEditor items={editingItems} onChange={setEditingItems} catalog={catalog} />
         </Dialog>
       ) : null}
 
@@ -372,7 +373,7 @@ export default function FinancePage() {
           </label>
           <div>
             <p className="mb-2 text-xs font-semibold text-ink-2">{t("finance.items")}</p>
-            <LineItemsEditor items={formItems} onChange={setFormItems} />
+            <LineItemsEditor items={formItems} onChange={setFormItems} catalog={catalog} />
           </div>
           <Field label={t("common.notes")}>
             <Input {...invoiceForm.register("notes")} />

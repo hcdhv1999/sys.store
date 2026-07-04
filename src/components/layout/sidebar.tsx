@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Package,
   Briefcase,
   Calendar,
   CheckSquare,
@@ -40,6 +41,7 @@ const sections: { heading: MessageKey; items: { href: string; label: MessageKey;
     items: [
       { href: "/team", label: "nav.team", icon: UsersRound },
       { href: "/quotations", label: "nav.quotations", icon: FileText },
+      { href: "/catalog", label: "nav.catalog", icon: Package },
       { href: "/finance", label: "nav.finance", icon: Wallet },
       { href: "/marketing", label: "nav.marketing", icon: Megaphone },
       { href: "/stores", label: "nav.stores", icon: Store },

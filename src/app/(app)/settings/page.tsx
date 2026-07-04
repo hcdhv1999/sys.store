@@ -20,11 +20,17 @@ import { auditLog, employees, tenant } from "@/lib/data/seed";
 import type { MessageKey } from "@/lib/i18n/en";
 import type { Role } from "@/types";
 
+const optionalStr = (schema: z.ZodString) => schema.optional().or(z.literal(""));
+
 const companySchema = z.object({
   name: z.string().min(2),
   nameEn: z.string().min(2),
-  cr: z.string().regex(/^\d{10}$/),
-  vatNumber: z.string().regex(/^\d{15}$/),
+  freelanceLicense: z.string().min(4),
+  mobile: z.string().min(9),
+  email: z.string().email(),
+  // Freelance business — CR & VAT stay optional until registered
+  cr: optionalStr(z.string().regex(/^\d{10}$/)),
+  vatNumber: optionalStr(z.string().regex(/^\d{15}$/)),
   city: z.string().min(2),
 });
 type CompanyForm = z.infer<typeof companySchema>;
@@ -104,7 +110,16 @@ export default function SettingsPage() {
 
   const companyForm = useForm<CompanyForm>({
     resolver: zodResolver(companySchema),
-    defaultValues: { name: tenant.name, nameEn: tenant.nameEn, cr: tenant.cr, vatNumber: tenant.vatNumber, city: tenant.city },
+    defaultValues: {
+      name: tenant.name,
+      nameEn: tenant.nameEn,
+      freelanceLicense: tenant.freelanceLicense,
+      mobile: tenant.mobile,
+      email: tenant.email,
+      cr: tenant.cr,
+      vatNumber: tenant.vatNumber,
+      city: tenant.city,
+    },
   });
 
   const onSaveCompany = companyForm.handleSubmit(() => toast(`${t("common.save")} ✓`));
@@ -160,10 +175,19 @@ export default function SettingsPage() {
                 <Field label={t("settings.companyNameEn")} error={companyForm.formState.errors.nameEn && t("common.invalidValue")}>
                   <Input dir="ltr" {...companyForm.register("nameEn")} />
                 </Field>
-                <Field label={t("clients.cr")} error={companyForm.formState.errors.cr && t("common.invalidValue")}>
+                <Field label={t("settings.freelanceLicense")} error={companyForm.formState.errors.freelanceLicense && t("common.invalidValue")}>
+                  <Input dir="ltr" {...companyForm.register("freelanceLicense")} />
+                </Field>
+                <Field label={t("clients.mobile")} error={companyForm.formState.errors.mobile && t("common.invalidValue")}>
+                  <Input dir="ltr" {...companyForm.register("mobile")} />
+                </Field>
+                <Field label={t("common.email")} error={companyForm.formState.errors.email && t("common.invalidValue")}>
+                  <Input type="email" dir="ltr" {...companyForm.register("email")} />
+                </Field>
+                <Field label={`${t("clients.cr")} (${t("common.optionalMark")})`} error={companyForm.formState.errors.cr && t("common.invalidValue")}>
                   <Input dir="ltr" maxLength={10} {...companyForm.register("cr")} />
                 </Field>
-                <Field label={t("clients.vatNumber")} error={companyForm.formState.errors.vatNumber && t("common.invalidValue")}>
+                <Field label={`${t("clients.vatNumber")} (${t("common.optionalMark")})`} error={companyForm.formState.errors.vatNumber && t("common.invalidValue")}>
                   <Input dir="ltr" maxLength={15} {...companyForm.register("vatNumber")} />
                 </Field>
                 <Field label={t("common.city")} error={companyForm.formState.errors.city && t("common.invalidValue")}>

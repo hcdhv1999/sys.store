@@ -142,8 +142,16 @@ export function DocumentSheet({
             <div>
               <p className="text-lg leading-tight font-bold">{tenant.name}</p>
               <p className="text-xs" style={{ color: paper.sub }}>{tenant.nameEn}</p>
+              {/* freelance-first identity — CR/VAT appear only once registered */}
               <p className="mt-1 text-[10px] tabular-nums" style={{ color: paper.faint }}>
-                {t("clients.cr")}: <span dir="ltr">{tenant.cr}</span> · {t("clients.vatNumber")}: <span dir="ltr">{tenant.vatNumber}</span>
+                {tenant.freelanceLicense ? (
+                  <>{t("settings.freelanceLicense")}: <span dir="ltr">{tenant.freelanceLicense}</span></>
+                ) : null}
+                {tenant.cr ? <> · {t("clients.cr")}: <span dir="ltr">{tenant.cr}</span></> : null}
+                {tenant.vatNumber ? <> · {t("clients.vatNumber")}: <span dir="ltr">{tenant.vatNumber}</span></> : null}
+              </p>
+              <p className="mt-0.5 text-[10px] tabular-nums" style={{ color: paper.faint }}>
+                <span dir="ltr">{tenant.mobile}</span> · <span dir="ltr">{tenant.email}</span>
               </p>
             </div>
           </div>

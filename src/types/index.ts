@@ -20,10 +20,33 @@ export interface Tenant {
   id: string;
   name: string;
   nameEn: string;
+  legalStatus: "freelance" | "company";
+  /** وثيقة العمل الحر — primary registration for freelance businesses */
+  freelanceLicense: string;
+  mobile: string;
+  email: string;
+  /** optional — freelance businesses may not have these yet */
   cr: string;
   vatNumber: string;
   city: string;
   plan: "pro";
+}
+
+export type CatalogKind = "product" | "service";
+
+export interface CatalogItem {
+  id: string;
+  tenantId: string;
+  kind: CatalogKind;
+  name: string;
+  category: string;
+  sku: string;
+  unit: string;
+  price: number;
+  cost: number;
+  vatApplicable: boolean;
+  active: boolean;
+  description: string;
 }
 
 export interface Employee {

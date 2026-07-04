@@ -18,6 +18,7 @@ export const en = {
   "nav.reports": "Reports",
   "nav.notifications": "Notifications",
   "nav.settings": "Settings",
+  "nav.catalog": "Products & Services",
   "nav.workspace": "Workspace",
   "nav.management": "Management",
   "nav.logout": "Log out",
@@ -63,6 +64,7 @@ export const en = {
   "common.spent": "Spent",
   "common.tags": "Tags",
   "common.invalidValue": "Please enter a valid value",
+  "common.optionalMark": "optional",
   "common.noResults": "No results found",
   "common.noResultsHint": "Try adjusting the search or filters.",
   "common.showing": "Showing",
@@ -392,6 +394,28 @@ export const en = {
   "auth.demoHint": "Demo workspace — use the pre-filled credentials",
   "auth.invalid": "Invalid email or password",
   "auth.linkSent": "If an account exists for this email, a reset link is on its way.",
+
+  // Catalog
+  "catalog.title": "Products & Services",
+  "catalog.subtitle": "Everything you sell, priced once and reused everywhere",
+  "catalog.addItem": "Add item",
+  "catalog.product": "Product",
+  "catalog.service": "Service",
+  "catalog.kind": "Type",
+  "catalog.category": "Category",
+  "catalog.sku": "SKU",
+  "catalog.unit": "Unit",
+  "catalog.price": "Price",
+  "catalog.cost": "Cost",
+  "catalog.margin": "Margin",
+  "catalog.vatApplicable": "VAT applies",
+  "catalog.vatExempt": "Exempt",
+  "catalog.fromCatalog": "Add from catalog…",
+  "catalog.activeOnly": "Active only",
+
+  // Settings — freelance identity
+  "settings.freelanceLicense": "Freelance license",
+  "settings.legalFreelance": "Freelance business",
 
   // Sales documents (quotations & invoices)
   "docs.quotation": "Quotation",

@@ -8,9 +8,9 @@ import { Plus, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { docTotals } from "@/lib/data/queries";
-import type { InvoiceItem } from "@/types";
+import type { CatalogItem, InvoiceItem } from "@/types";
 
 export function emptyItem(): InvoiceItem {
   return { service: "", description: "", qty: 1, unitPrice: 0, discountPct: 0 };
@@ -30,7 +30,16 @@ export function itemsValid(items: InvoiceItem[]): boolean {
   );
 }
 
-export function LineItemsEditor({ items, onChange }: { items: InvoiceItem[]; onChange: (items: InvoiceItem[]) => void }) {
+export function LineItemsEditor({
+  items,
+  onChange,
+  catalog,
+}: {
+  items: InvoiceItem[];
+  onChange: (items: InvoiceItem[]) => void;
+  /** priced catalog — picking an entry appends a prefilled row */
+  catalog?: CatalogItem[];
+}) {
   const { t, locale } = useI18n();
   const totals = docTotals({ items });
 
@@ -38,8 +47,40 @@ export function LineItemsEditor({ items, onChange }: { items: InvoiceItem[]; onC
     onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
+  function addFromCatalog(id: string) {
+    const entry = catalog?.find((c) => c.id === id);
+    if (!entry) return;
+    const row: InvoiceItem = {
+      service: entry.name,
+      description: entry.description,
+      qty: 1,
+      unitPrice: entry.price,
+      discountPct: 0,
+    };
+    // replace a still-empty first row instead of stacking under it
+    const isBlank = items.length === 1 && !items[0].service && !items[0].description && items[0].unitPrice === 0;
+    onChange(isBlank ? [row] : [...items, row]);
+  }
+
   return (
     <div>
+      {catalog && catalog.length > 0 ? (
+        <Select
+          value=""
+          onChange={(e) => e.target.value && addFromCatalog(e.target.value)}
+          className="mb-3 border-dashed"
+          aria-label={t("catalog.fromCatalog")}
+        >
+          <option value="">{t("catalog.fromCatalog")}</option>
+          {catalog
+            .filter((c) => c.active)
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} — {formatCurrency(c.price, locale)} / {c.unit}
+              </option>
+            ))}
+        </Select>
+      ) : null}
       {/* column headings */}
       <div className="mb-1.5 hidden grid-cols-[1fr_1.4fr_64px_100px_72px_36px] gap-2 px-0.5 text-[10px] font-bold text-ink-3 uppercase sm:grid">
         <span>{t("docs.service")}</span>

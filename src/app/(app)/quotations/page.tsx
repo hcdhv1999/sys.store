@@ -18,7 +18,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/badge";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { useClients, useQuotations } from "@/hooks/use-data";
+import { useCatalog, useClients, useQuotations } from "@/hooks/use-data";
 import { clientName, invoiceTotal, quotesSummary } from "@/lib/data/queries";
 import { TENANT_ID } from "@/lib/data/seed";
 import { DocumentSheet } from "@/features/documents/document-sheet";
@@ -41,6 +41,7 @@ export default function QuotationsPage() {
   const toast = useToast();
   const { data: fetched, isLoading } = useQuotations();
   const { data: clients } = useClients();
+  const { data: catalog } = useCatalog();
 
   const [quotes, setQuotes] = useState<Quotation[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -238,7 +239,7 @@ export default function QuotationsPage() {
             </>
           }
         >
-          <LineItemsEditor items={editingItems} onChange={setEditingItems} />
+          <LineItemsEditor items={editingItems} onChange={setEditingItems} catalog={catalog} />
         </Dialog>
       ) : null}
 
@@ -270,7 +271,7 @@ export default function QuotationsPage() {
           </Field>
           <div>
             <p className="mb-2 text-xs font-semibold text-ink-2">{t("finance.items")}</p>
-            <LineItemsEditor items={formItems} onChange={setFormItems} />
+            <LineItemsEditor items={formItems} onChange={setFormItems} catalog={catalog} />
           </div>
           <Field label={t("common.notes")}>
             <Textarea rows={2} {...register("notes")} />

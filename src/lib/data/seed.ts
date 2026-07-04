@@ -4,6 +4,7 @@
 
 import type {
   ActivityItem,
+  CatalogItem,
   AppNotification,
   AuditEntry,
   CalendarEvent,
@@ -26,13 +27,33 @@ export const TENANT_ID = "t-hirf";
 
 export const tenant: Tenant = {
   id: TENANT_ID,
-  name: "حِرف للحلول الرقمية",
-  nameEn: "HIRF Digital Solutions",
-  cr: "1010589214",
-  vatNumber: "310158921400003",
+  name: "حِرف",
+  nameEn: "HIRF",
+  legalStatus: "freelance",
+  freelanceLicense: "FL-346-1198",
+  mobile: "+966 55 210 4478",
+  email: "hello@hirf.sa",
+  // Freelance business — CR & VAT stay empty until registered (optional in settings)
+  cr: "",
+  vatNumber: "",
   city: "الرياض",
   plan: "pro",
 };
+
+export const catalog: CatalogItem[] = [
+  { id: "ci-1", tenantId: TENANT_ID, kind: "service", name: "هوية بصرية كاملة", category: "التصميم", sku: "SRV-BRND-01", unit: "مشروع", price: 85000, cost: 32000, vatApplicable: true, active: true, description: "استراتيجية العلامة، الشعار، النظام البصري ودليل الاستخدام." },
+  { id: "ci-2", tenantId: TENANT_ID, kind: "service", name: "تصميم شعار", category: "التصميم", sku: "SRV-LOGO-01", unit: "مشروع", price: 12000, cost: 4500, vatApplicable: true, active: true, description: "ثلاثة مقترحات مع جولتي تعديل وملفات نهائية." },
+  { id: "ci-3", tenantId: TENANT_ID, kind: "service", name: "تطوير متجر سلة", category: "التطوير", sku: "SRV-SALLA-01", unit: "مشروع", price: 45000, cost: 18000, vatApplicable: true, active: true, description: "ثيم مخصص بالكامل مع تحسين السرعة وتجربة الجوال." },
+  { id: "ci-4", tenantId: TENANT_ID, kind: "service", name: "موقع تسويقي تفاعلي", category: "التطوير", sku: "SRV-WEB-01", unit: "مشروع", price: 65000, cost: 26000, vatApplicable: true, active: true, description: "تصميم وتطوير موقع تعريفي متعدد الصفحات." },
+  { id: "ci-5", tenantId: TENANT_ID, kind: "service", name: "إدارة حملات إعلانية", category: "التسويق", sku: "SRV-ADS-01", unit: "شهر", price: 15000, cost: 6000, vatApplicable: true, active: true, description: "إدارة شهرية للحملات عبر منصتين مع تقرير أداء." },
+  { id: "ci-6", tenantId: TENANT_ID, kind: "service", name: "إدارة حسابات التواصل", category: "التسويق", sku: "SRV-SMM-01", unit: "شهر", price: 9500, cost: 3800, vatApplicable: true, active: true, description: "١٦ منشورًا شهريًا مع الردود والتقارير." },
+  { id: "ci-7", tenantId: TENANT_ID, kind: "service", name: "جلسة تصوير منتجات", category: "الإنتاج", sku: "SRV-PHOTO-01", unit: "جلسة", price: 7500, cost: 3000, vatApplicable: true, active: true, description: "حتى ٣٠ منتجًا مع معالجة الصور." },
+  { id: "ci-8", tenantId: TENANT_ID, kind: "service", name: "فيديو موشن جرافيك", category: "الإنتاج", sku: "SRV-MOTION-01", unit: "دقيقة", price: 9000, cost: 3600, vatApplicable: true, active: false, description: "سيناريو وتعليق صوتي وموسيقى مرخصة." },
+  { id: "ci-9", tenantId: TENANT_ID, kind: "product", name: "استضافة سحابية سنوية", category: "منتجات رقمية", sku: "PRD-HOST-01", unit: "سنة", price: 1200, cost: 640, vatApplicable: true, active: true, description: "استضافة مُدارة مع شهادة SSL ونسخ احتياطي يومي." },
+  { id: "ci-10", tenantId: TENANT_ID, kind: "product", name: "نطاق .sa", category: "منتجات رقمية", sku: "PRD-DOM-01", unit: "سنة", price: 220, cost: 140, vatApplicable: false, active: true, description: "تسجيل وإدارة نطاق سعودي لمدة سنة." },
+  { id: "ci-11", tenantId: TENANT_ID, kind: "service", name: "عقد صيانة ودعم", category: "اشتراكات", sku: "SRV-CARE-01", unit: "شهر", price: 4500, cost: 1700, vatApplicable: true, active: true, description: "تحديثات ومراقبة ودعم فني خلال ساعات العمل." },
+  { id: "ci-12", tenantId: TENANT_ID, kind: "service", name: "اشتراك إدارة متجر", category: "اشتراكات", sku: "SRV-STORE-01", unit: "شهر", price: 6000, cost: 2400, vatApplicable: true, active: true, description: "تشغيل المتجر وتحديث المنتجات وتقارير شهرية." },
+];
 
 export const departments: Department[] = [
   { id: "d-1", tenantId: TENANT_ID, name: "الإدارة", headId: "e-1", color: "var(--chart-1)" },
