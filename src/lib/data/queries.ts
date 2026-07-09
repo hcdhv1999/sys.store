@@ -18,9 +18,54 @@ import {
   stores,
   tasks,
 } from "./seed";
-import type { Campaign, Client, Employee, Invoice, Project, Quotation } from "@/types";
+import type { Campaign, Client, Employee, Invoice, Project, Quotation, Task } from "@/types";
 
 export const VAT_RATE = 0.15;
+
+// Reference "today" for the seeded workspace (the demo dataset is dated
+// around this point). With Supabase live this becomes the real clock.
+export const TODAY = "2026-07-02";
+
+// ── Task helpers (real derivations, no hardcoded stats) ─────────────────
+
+export const OPEN_TASK_STATUSES = ["todo", "inProgress", "review"] as const;
+
+/** Client of a task: explicit link, else inherited from its project. */
+export function taskClientId(task: Pick<Task, "clientId" | "projectId">): string | null {
+  if (task.clientId) return task.clientId;
+  if (task.projectId) return byId.project(task.projectId)?.clientId ?? null;
+  return null;
+}
+
+export function isOverdue(task: Pick<Task, "status" | "dueDate">): boolean {
+  return task.status !== "done" && task.status !== "cancelled" && task.dueDate < TODAY;
+}
+
+/** KPI row values computed from the given task set — never hardcoded. */
+export function taskKpis(list: Task[]) {
+  return {
+    total: list.filter((t) => t.status !== "cancelled").length,
+    overdue: list.filter(isOverdue).length,
+    dueToday: list.filter((t) => t.dueDate === TODAY && t.status !== "done" && t.status !== "cancelled").length,
+    completed: list.filter((t) => t.status === "done").length,
+  };
+}
+
+/** Per-project task rollup, incl. progress from real completion. */
+export function projectTaskStats(projectId: string, list: Task[]) {
+  const own = list.filter((t) => t.projectId === projectId && t.status !== "cancelled");
+  const completed = own.filter((t) => t.status === "done").length;
+  return {
+    total: own.length,
+    completed,
+    overdue: own.filter(isOverdue).length,
+    progress: own.length ? Math.round((completed / own.length) * 100) : 0,
+  };
+}
+
+export function tasksForClient(clientId: string, list: Task[]): Task[] {
+  return list.filter((t) => taskClientId(t) === clientId);
+}
 
 type LineItems = { items: { qty: number; unitPrice: number; discountPct?: number }[] };
 

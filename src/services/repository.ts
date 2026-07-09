@@ -20,6 +20,7 @@ import type {
   Quotation,
   Store,
   Task,
+  TaskComment,
 } from "@/types";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -107,14 +108,18 @@ export async function listTasks(): Promise<Task[]> {
     id: r.id,
     tenantId: r.tenant_id,
     projectId: r.project_id,
+    clientId: r.client_id ?? null,
     title: r.title,
     status: r.status,
     priority: r.priority,
     assigneeId: str(r.assignee_id),
+    creatorId: str(r.creator_id),
+    startDate: str(r.start_date),
     dueDate: str(r.due_date),
     labels: r.labels ?? [],
     estimateH: num(r.estimate_hours),
     spentH: num(r.spent_hours),
+    notes: str(r.notes),
     subtasksDone: 0,
     subtasksTotal: 0,
     comments: num(r.task_comments?.[0]?.count),
@@ -314,4 +319,56 @@ export async function listCatalog(): Promise<CatalogItem[]> {
     active: Boolean(r.active),
     description: str(r.description),
   }));
+}
+
+// ── Task mutations ──────────────────────────────────────────────────────
+// With Supabase these persist to Postgres (RLS scopes to the tenant); in
+// demo mode they resolve so the caller's optimistic local update stands.
+// Callers await these and roll back their optimistic state on rejection.
+
+export async function persistTaskStatus(taskId: string, status: string): Promise<void> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return;
+  const { error } = await supabase.from("tasks").update({ status }).eq("id", taskId);
+  if (error) throw error;
+}
+
+export async function persistTask(taskId: string, patch: Record<string, unknown>): Promise<void> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return;
+  const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
+  if (error) throw error;
+}
+
+export async function createTaskRow(payload: Record<string, unknown>): Promise<void> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return;
+  const { error } = await supabase.from("tasks").insert(payload);
+  if (error) throw error;
+}
+
+export async function listTaskComments(taskId: string): Promise<TaskComment[]> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return seed.taskComments.filter((c) => c.taskId === taskId);
+  const { data, error } = await supabase
+    .from("task_comments")
+    .select("*")
+    .eq("task_id", taskId)
+    .order("created_at");
+  if (error) throw error;
+  return (data as Row[]).map((r) => ({
+    id: r.id,
+    tenantId: r.tenant_id,
+    taskId: r.task_id,
+    authorId: str(r.author_id),
+    body: r.body,
+    createdAt: str(r.created_at),
+  }));
+}
+
+export async function addTaskComment(taskId: string, body: string): Promise<void> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return;
+  const { error } = await supabase.from("task_comments").insert({ task_id: taskId, body });
+  if (error) throw error;
 }

@@ -21,15 +21,17 @@ import { Avatar } from "@/components/ui/avatar";
 import { employeeName } from "@/lib/data/queries";
 import type { Task, TaskStatus } from "@/types";
 
+// The four board columns. "cancelled" is intentionally absent so cancelled
+// tasks never surface on the default board.
 const COLUMNS: TaskStatus[] = ["todo", "inProgress", "review", "done"];
-const columnAccent: Record<TaskStatus, string> = {
+const columnAccent: Record<string, string> = {
   todo: "var(--text-muted)",
   inProgress: "var(--info)",
   review: "var(--warning)",
   done: "var(--success)",
 };
 
-function TaskCard({ task, overlay = false }: { task: Task; overlay?: boolean }) {
+function TaskCard({ task, overlay = false, onOpen }: { task: Task; overlay?: boolean; onOpen?: (id: string) => void }) {
   const { t, locale } = useI18n();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
 
@@ -37,6 +39,7 @@ function TaskCard({ task, overlay = false }: { task: Task; overlay?: boolean }) 
     <div
       ref={overlay ? undefined : setNodeRef}
       {...(overlay ? {} : { ...listeners, ...attributes })}
+      onClick={overlay ? undefined : () => onOpen?.(task.id)}
       className={cn(
         "cursor-grab rounded-xl border border-border bg-surface p-3.5 shadow-soft transition-shadow select-none",
         overlay ? "rotate-2 shadow-pop" : "hover:shadow-pop",
@@ -80,7 +83,7 @@ function TaskCard({ task, overlay = false }: { task: Task; overlay?: boolean }) 
   );
 }
 
-function Column({ status, tasks }: { status: TaskStatus; tasks: Task[] }) {
+function Column({ status, tasks, onOpen }: { status: TaskStatus; tasks: Task[]; onOpen?: (id: string) => void }) {
   const { t, locale } = useI18n();
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -101,14 +104,22 @@ function Column({ status, tasks }: { status: TaskStatus; tasks: Task[] }) {
       </div>
       <div className="flex flex-1 flex-col gap-2.5">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} onOpen={onOpen} />
         ))}
       </div>
     </div>
   );
 }
 
-export function KanbanBoard({ tasks, onMove }: { tasks: Task[]; onMove: (taskId: string, status: TaskStatus) => void }) {
+export function KanbanBoard({
+  tasks,
+  onMove,
+  onOpen,
+}: {
+  tasks: Task[];
+  onMove: (taskId: string, status: TaskStatus) => void;
+  onOpen?: (id: string) => void;
+}) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -130,7 +141,7 @@ export function KanbanBoard({ tasks, onMove }: { tasks: Task[]; onMove: (taskId:
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((status) => (
-          <Column key={status} status={status} tasks={tasks.filter((task) => task.status === status)} />
+          <Column key={status} status={status} tasks={tasks.filter((task) => task.status === status)} onOpen={onOpen} />
         ))}
       </div>
       <DragOverlay>{activeTask ? <TaskCard task={activeTask} overlay /> : null}</DragOverlay>

@@ -4,7 +4,9 @@
 
 export type ClientStatus = "active" | "lead" | "inactive" | "archived";
 export type ProjectStatus = "planning" | "inProgress" | "review" | "completed" | "onHold";
-export type TaskStatus = "todo" | "inProgress" | "review" | "done";
+// Board statuses map to the spec's New / In Progress / Review / Completed;
+// "cancelled" is a terminal state kept off the default board.
+export type TaskStatus = "todo" | "inProgress" | "review" | "done" | "cancelled";
 export type Priority = "low" | "medium" | "high" | "urgent";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "partial" | "overdue";
 export type QuoteStatus = "draft" | "sent" | "approved" | "rejected" | "expired";
@@ -132,18 +134,33 @@ export interface Task {
   id: string;
   tenantId: string;
   projectId: string | null;
+  /** direct client link; when null it is derived from the task's project */
+  clientId?: string | null;
   title: string;
   status: TaskStatus;
   priority: Priority;
   assigneeId: string;
+  /** who created the task */
+  creatorId?: string;
+  startDate?: string;
   dueDate: string;
   labels: string[];
   estimateH: number;
   spentH: number;
+  notes?: string;
   subtasksDone: number;
   subtasksTotal: number;
   comments: number;
   attachments: number;
+}
+
+export interface TaskComment {
+  id: string;
+  tenantId: string;
+  taskId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface InvoiceItem {

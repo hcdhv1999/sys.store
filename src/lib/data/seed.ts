@@ -20,6 +20,7 @@ import type {
   Quotation,
   Store,
   Task,
+  TaskComment,
   Tenant,
 } from "@/types";
 
@@ -277,6 +278,15 @@ export const tasks: Task[] = [
   { id: "tk-16", tenantId: TENANT_ID, projectId: "pr-6", title: "بحث ترندات اليوم الوطني ٩٦", status: "todo", priority: "low", assigneeId: "e-5", dueDate: "2026-07-25", labels: ["بحث", "إعلانات"], estimateH: 5, spentH: 0, subtasksDone: 0, subtasksTotal: 2, comments: 0, attachments: 0 },
   { id: "tk-17", tenantId: TENANT_ID, projectId: null, title: "إقفال فواتير الربع الثاني", status: "inProgress", priority: "high", assigneeId: "e-8", dueDate: "2026-07-10", labels: ["مالية"], estimateH: 8, spentH: 4, subtasksDone: 2, subtasksTotal: 5, comments: 1, attachments: 2 },
   { id: "tk-18", tenantId: TENANT_ID, projectId: "pr-8", title: "عرض عقد صيانة سنوي على نقاء", status: "todo", priority: "medium", assigneeId: "e-1", dueDate: "2026-07-14", labels: ["مبيعات"], estimateH: 3, spentH: 0, subtasksDone: 0, subtasksTotal: 1, comments: 1, attachments: 0 },
+  { id: "tk-19", tenantId: TENANT_ID, projectId: "pr-3", title: "تصميم بانر إعلاني للنسخة القديمة", status: "cancelled", priority: "low", assigneeId: "e-7", startDate: "2026-06-20", dueDate: "2026-06-30", labels: ["تصميم"], estimateH: 4, spentH: 1, notes: "أُلغي بعد تغيير اتجاه الحملة.", subtasksDone: 0, subtasksTotal: 0, comments: 0, attachments: 0 },
+];
+
+// Threaded task discussion (mirrors the task_comments table).
+export const taskComments: TaskComment[] = [
+  { id: "tc-1", tenantId: TENANT_ID, taskId: "tk-1", authorId: "e-2", body: "بوابة مدى تعمل، بقي اختبار Apple Pay على iOS 17.", createdAt: "2026-07-01T09:20:00Z" },
+  { id: "tc-2", tenantId: TENANT_ID, taskId: "tk-1", authorId: "e-6", body: "خلصت اختبار مدى، أرفع نتائج Apple Pay اليوم.", createdAt: "2026-07-01T14:05:00Z" },
+  { id: "tc-3", tenantId: TENANT_ID, taskId: "tk-4", authorId: "e-4", body: "أنجزت 7 من 12 ملاحظة، الباقي متعلق بالـ QA.", createdAt: "2026-07-02T08:15:00Z" },
+  { id: "tc-4", tenantId: TENANT_ID, taskId: "tk-3", authorId: "e-3", body: "الفصل الثالث جاهز للمراجعة، أضفت الأمثلة التطبيقية.", createdAt: "2026-06-30T16:40:00Z" },
 ];
 
 export const invoices: Invoice[] = [

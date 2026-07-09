@@ -11,8 +11,9 @@ import { Avatar } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
-import { byId, campaignMetrics, clientRollup, employeeName, invoiceTotal } from "@/lib/data/queries";
-import { activity } from "@/lib/data/seed";
+import { byId, campaignMetrics, clientRollup, employeeName, invoiceTotal, isOverdue, tasksForClient } from "@/lib/data/queries";
+import { activity, tasks as allTasks } from "@/lib/data/seed";
+import { cn } from "@/lib/utils";
 
 export function ClientDetail({ id }: { id: string }) {
   const { t, locale } = useI18n();
@@ -21,6 +22,7 @@ export function ClientDetail({ id }: { id: string }) {
   if (!client) notFound();
 
   const rollup = clientRollup(client.id);
+  const clientTasks = tasksForClient(client.id, allTasks);
   const clientActivity = activity.filter((a) => a.target.includes(client.name.slice(0, 6)));
 
   return (
@@ -92,6 +94,7 @@ export function ClientDetail({ id }: { id: string }) {
         <TabsList>
           <TabsTrigger value="overview">{t("common.overview")}</TabsTrigger>
           <TabsTrigger value="projects">{t("clients.projectsTab")}</TabsTrigger>
+          <TabsTrigger value="tasks">{t("nav.tasks")}</TabsTrigger>
           <TabsTrigger value="invoices">{t("clients.invoices")}</TabsTrigger>
           <TabsTrigger value="campaigns">{t("clients.campaigns")}</TabsTrigger>
           <TabsTrigger value="stores">{t("clients.storesTab")}</TabsTrigger>
@@ -170,6 +173,45 @@ export function ClientDetail({ id }: { id: string }) {
               </Link>
             ))
           )}
+        </TabsContent>
+
+        {/* Tasks — real tasks linked to this client (direct or via project) */}
+        <TabsContent value="tasks" className="mt-4">
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <Card className="p-4 text-center">
+              <p className="text-lg font-bold text-ink tabular-nums">{formatNumber(clientTasks.filter((tk) => tk.status !== "done" && tk.status !== "cancelled").length, locale)}</p>
+              <p className="text-xs text-ink-2">{t("status.active")}</p>
+            </Card>
+            <Card className="p-4 text-center">
+              <p className="text-lg font-bold text-danger tabular-nums">{formatNumber(clientTasks.filter(isOverdue).length, locale)}</p>
+              <p className="text-xs text-ink-2">{t("tasks.overdue")}</p>
+            </Card>
+            <Card className="p-4 text-center">
+              <p className="text-lg font-bold text-success tabular-nums">{formatNumber(clientTasks.filter((tk) => tk.status === "done").length, locale)}</p>
+              <p className="text-xs text-ink-2">{t("tasks.completed")}</p>
+            </Card>
+          </div>
+          <Card>
+            {clientTasks.length === 0 ? (
+              <EmptyState title={t("tasks.noTasks")} hint={t("tasks.noTasksHint")} />
+            ) : (
+              <ul>
+                {clientTasks.map((task) => (
+                  <li key={task.id}>
+                    <Link href={`/tasks?task=${task.id}`} className="flex items-center gap-3 border-b border-border/60 px-5 py-3 transition-colors last:border-0 hover:bg-surface-2/60">
+                      <Avatar name={employeeName(task.assigneeId)} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("truncate text-sm font-medium", task.status === "done" ? "text-ink-3 line-through" : "text-ink")}>{task.title}</p>
+                        <p className="mt-0.5 text-[11px] text-ink-3">{task.projectId ? byId.project(task.projectId)?.name : t("tasks.noProject")}</p>
+                      </div>
+                      <span className={cn("text-[11px] tabular-nums", isOverdue(task) ? "font-semibold text-danger" : "text-ink-3")}>{formatDate(task.dueDate, locale, { day: "numeric", month: "short" })}</span>
+                      <StatusBadge status={task.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
         </TabsContent>
 
         {/* Invoices */}

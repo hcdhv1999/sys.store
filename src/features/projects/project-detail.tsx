@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { ArrowRight, Calendar, CheckCircle2, Circle, Clock, MessageSquare, Paperclip, Wallet } from "lucide-react";
+import { ArrowRight, Calendar, CheckCircle2, Circle, Clock, MessageSquare, Plus, Wallet } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
-import { byId, clientName, employeeName } from "@/lib/data/queries";
+import { byId, clientName, employeeName, isOverdue, projectTaskStats } from "@/lib/data/queries";
 import { tasks as allTasks } from "@/lib/data/seed";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ export function ProjectDetail({ id }: { id: string }) {
   if (!project) notFound();
 
   const projectTasks = allTasks.filter((task) => task.projectId === project.id);
+  const taskStats = projectTaskStats(project.id, allTasks);
   const isDone = (mId: string, fallback: boolean) => doneOverrides[mId] ?? fallback;
   const doneCount = project.milestones.filter((m) => isDone(m.id, m.done)).length;
 
@@ -113,40 +114,51 @@ export function ProjectDetail({ id }: { id: string }) {
           </CardBody>
         </Card>
 
-        {/* Tasks */}
+        {/* Tasks — real rollup from the project's tasks */}
         <Card className="lg:col-span-2">
           <CardHeader
-            title={t("projects.tasks")}
+            title={t("tasks.projectTasks")}
+            subtitle={`${formatNumber(taskStats.completed, locale)}/${formatNumber(taskStats.total, locale)} ${t("status.done")}${taskStats.overdue ? ` · ${formatNumber(taskStats.overdue, locale)} ${t("tasks.overdue")}` : ""}`}
             action={
-              <Link href="/tasks" className="text-xs font-semibold text-accent hover:text-accent-hover">
-                {t("common.viewAll")}
+              <Link href={`/tasks?project=${project.id}`} className="flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent-hover">
+                <Plus className="h-3.5 w-3.5" />
+                {t("tasks.createFromProject")}
               </Link>
             }
           />
           <CardBody className="p-0 pt-3">
+            {taskStats.total > 0 ? (
+              <div className="px-5 pb-3">
+                <div className="flex items-center gap-3">
+                  <Progress value={taskStats.progress} className="flex-1" />
+                  <span className="text-xs font-bold text-ink tabular-nums">{formatNumber(taskStats.progress, locale)}%</span>
+                </div>
+              </div>
+            ) : null}
             {projectTasks.length === 0 ? (
-              <EmptyState />
+              <EmptyState title={t("tasks.noTasks")} hint={t("tasks.noTasksHint")} />
             ) : (
               <ul>
                 {projectTasks.map((task) => (
-                  <li key={task.id} className="flex items-center gap-3 border-b border-border/60 px-5 py-3 last:border-0">
-                    <Avatar name={employeeName(task.assigneeId)} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("truncate text-sm font-medium", task.status === "done" ? "text-ink-3 line-through" : "text-ink")}>
-                        {task.title}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-3 text-[11px] text-ink-3 tabular-nums">
-                        <span>{formatDate(task.dueDate, locale, { day: "numeric", month: "short" })}</span>
-                        {task.comments > 0 ? (
-                          <span className="flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{formatNumber(task.comments, locale)}</span>
-                        ) : null}
-                        {task.attachments > 0 ? (
-                          <span className="flex items-center gap-0.5"><Paperclip className="h-3 w-3" />{formatNumber(task.attachments, locale)}</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <PriorityBadge priority={task.priority} />
-                    <StatusBadge status={task.status} />
+                  <li key={task.id}>
+                    <Link href={`/tasks?task=${task.id}`} className="flex items-center gap-3 border-b border-border/60 px-5 py-3 transition-colors last:border-0 hover:bg-surface-2/60">
+                      <Avatar name={employeeName(task.assigneeId)} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("truncate text-sm font-medium", task.status === "done" ? "text-ink-3 line-through" : "text-ink")}>
+                          {task.title}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-3 text-[11px] tabular-nums">
+                          <span className={isOverdue(task) ? "font-semibold text-danger" : "text-ink-3"}>
+                            {formatDate(task.dueDate, locale, { day: "numeric", month: "short" })}
+                          </span>
+                          {task.comments > 0 ? (
+                            <span className="flex items-center gap-0.5 text-ink-3"><MessageSquare className="h-3 w-3" />{formatNumber(task.comments, locale)}</span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <PriorityBadge priority={task.priority} />
+                      <StatusBadge status={task.status} />
+                    </Link>
                   </li>
                 ))}
               </ul>

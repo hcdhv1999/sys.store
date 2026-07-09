@@ -1,45 +1,59 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { CalendarDays, CheckSquare, Kanban, List, Plus } from "lucide-react";
+import { AlarmClock, CalendarClock, CalendarDays, CheckCircle2, CheckSquare, Kanban, ListChecks, List, ListTodo, Plus, UserRound } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatDate, formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { Badge, PriorityBadge, StatusBadge } from "@/components/ui/badge";
+import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { useEmployees, useProjects, useTasks } from "@/hooks/use-data";
-import { employeeName, projectName } from "@/lib/data/queries";
+import { useClients, useEmployees, useProjects, useTasks } from "@/hooks/use-data";
+import { clientName, employeeName, isOverdue, projectName, taskClientId, taskKpis } from "@/lib/data/queries";
+import { persistTask, persistTaskStatus } from "@/services/repository";
 import { KanbanBoard } from "@/features/tasks/kanban";
 import { TaskFormDialog } from "@/features/tasks/task-form";
+import { TaskDetail, type ActivityEntry } from "@/features/tasks/task-detail";
 import { cn } from "@/lib/utils";
 import type { Priority, Task, TaskStatus } from "@/types";
 
 const columnHelper = createColumnHelper<Task>();
+const CURRENT_USER = "e-1"; // signed-in owner (drives "My tasks")
 
 type View = "kanban" | "list" | "calendar";
 
-export default function TasksPage() {
+function TasksWorkspace() {
   const { t, locale } = useI18n();
   const toast = useToast();
+  const params = useSearchParams();
   const { data: fetched, isLoading } = useTasks();
   const { data: projects } = useProjects();
   const { data: employees } = useEmployees();
+  const { data: clients } = useClients();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [view, setView] = useState<View>("kanban");
-  const [assignee, setAssignee] = useState("all");
+  const [mine, setMine] = useState(false);
+  const [status, setStatus] = useState<"all" | TaskStatus>("all");
   const [priority, setPriority] = useState<"all" | Priority>("all");
+  const [project, setProject] = useState("all");
+  const [client, setClient] = useState("all");
+  const [assignee, setAssignee] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  // Session activity log per task (created + moves) — real events, not mock.
+  const [activityLog, setActivityLog] = useState<Record<string, ActivityEntry[]>>({});
 
-  // Local board state seeded from the repository (optimistic updates on drag).
   useEffect(() => {
     if (!isLoading && !hydrated) {
       setTasks(fetched);
@@ -47,20 +61,77 @@ export default function TasksPage() {
     }
   }, [isLoading, hydrated, fetched]);
 
+  // Deep link from a project ("+ add task") preselects that project.
+  const preselectProject = params.get("project") ?? undefined;
+  useEffect(() => {
+    if (preselectProject) setFormOpen(true);
+  }, [preselectProject]);
+
+  // Deep link from project/client task rows opens that task's details.
+  const deepTask = params.get("task");
+  useEffect(() => {
+    if (deepTask && hydrated) setDetailId(deepTask);
+  }, [deepTask, hydrated]);
+
+  const kpis = taskKpis(tasks);
+  const detail = tasks.find((tk) => tk.id === detailId) ?? null;
+
   const filtered = useMemo(
     () =>
       tasks.filter(
         (task) =>
-          (assignee === "all" || task.assigneeId === assignee) &&
-          (priority === "all" || task.priority === priority),
+          (!mine || task.assigneeId === CURRENT_USER) &&
+          (status === "all" || task.status === status) &&
+          (priority === "all" || task.priority === priority) &&
+          (project === "all" || task.projectId === project) &&
+          (client === "all" || taskClientId(task) === client) &&
+          (assignee === "all" || task.assigneeId === assignee),
       ),
-    [tasks, assignee, priority],
+    [tasks, mine, status, priority, project, client, assignee],
+  );
+  // The board never shows cancelled tasks.
+  const boardTasks = useMemo(() => filtered.filter((task) => task.status !== "cancelled"), [filtered]);
+
+  const logActivity = useCallback((taskId: string, entry: ActivityEntry) => {
+    setActivityLog((prev) => ({ ...prev, [taskId]: [...(prev[taskId] ?? []), entry] }));
+  }, []);
+
+  // Optimistic status move with rollback on a failed DB write (Supabase path).
+  const moveTask = useCallback(
+    async (taskId: string, next: TaskStatus) => {
+      const prevTask = tasks.find((tk) => tk.id === taskId);
+      if (!prevTask || prevTask.status === next) return;
+      setTasks((prev) => prev.map((tk) => (tk.id === taskId ? { ...tk, status: next } : tk)));
+      logActivity(taskId, { id: `a-${Date.now()}`, actorId: CURRENT_USER, kind: "moved", status: next, at: new Date().toISOString() });
+      try {
+        await persistTaskStatus(taskId, next);
+        toast(`${t("common.updated")}: ${t(`status.${next}`)}`, "info");
+      } catch {
+        setTasks((prev) => prev.map((tk) => (tk.id === taskId ? prevTask : tk)));
+        toast(t("common.invalidValue"), "error");
+      }
+    },
+    [tasks, logActivity, t, toast],
   );
 
-  function moveTask(taskId: string, status: TaskStatus) {
-    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status } : task)));
-    toast(`${t("common.updated")}: ${t(`status.${status}`)}`, "info");
-  }
+  // Inline detail edits — optimistic patch with rollback.
+  const patchTask = useCallback(
+    async (taskId: string, patch: Partial<Task>) => {
+      const prevTask = tasks.find((tk) => tk.id === taskId);
+      if (!prevTask) return;
+      setTasks((prev) => prev.map((tk) => (tk.id === taskId ? { ...tk, ...patch } : tk)));
+      if (patch.status) {
+        logActivity(taskId, { id: `a-${Date.now()}`, actorId: CURRENT_USER, kind: "moved", status: patch.status, at: new Date().toISOString() });
+      }
+      try {
+        await persistTask(taskId, patch as Record<string, unknown>);
+      } catch {
+        setTasks((prev) => prev.map((tk) => (tk.id === taskId ? prevTask : tk)));
+        toast(t("common.invalidValue"), "error");
+      }
+    },
+    [tasks, logActivity, t, toast],
+  );
 
   const columns = useMemo<ColumnDef<Task, unknown>[]>(
     () =>
@@ -68,34 +139,34 @@ export default function TasksPage() {
         columnHelper.accessor("title", {
           header: t("common.name"),
           cell: (info) => (
-            <span>
-              <span className="block max-w-72 truncate font-semibold text-ink">{info.getValue()}</span>
-              <span className="block text-xs text-ink-3">{projectName(info.row.original.projectId)}</span>
-            </span>
+            <span className="block max-w-64 truncate font-semibold text-ink">{info.getValue()}</span>
           ),
         }),
-        columnHelper.accessor((row) => employeeName(row.assigneeId), {
+        columnHelper.accessor((row) => projectName(row.projectId), {
+          id: "project",
+          header: t("common.project"),
+          cell: (info) => <span className="text-ink-2">{info.getValue() as string}</span>,
+        }),
+        columnHelper.accessor((row) => clientName(taskClientId(row)), {
+          id: "client",
+          header: t("common.client"),
+          cell: (info) => <span className="text-ink-2">{info.getValue() as string}</span>,
+        }),
+        columnHelper.accessor((row) => (row.assigneeId ? employeeName(row.assigneeId) : t("tasks.unassigned")), {
           id: "assignee",
           header: t("common.assignee"),
           cell: (info) => (
             <span className="flex items-center gap-2 text-ink-2">
-              <Avatar name={info.getValue() as string} size="sm" />
+              {info.row.original.assigneeId ? <Avatar name={info.getValue() as string} size="sm" /> : null}
               {info.getValue() as string}
             </span>
           ),
         }),
         columnHelper.accessor("dueDate", {
           header: t("common.dueDate"),
-          cell: (info) => <span className="text-ink-2 tabular-nums">{formatDate(info.getValue(), locale)}</span>,
-        }),
-        columnHelper.accessor("labels", {
-          header: t("tasks.labels"),
-          enableSorting: false,
           cell: (info) => (
-            <span className="flex gap-1">
-              {(info.getValue() as string[]).slice(0, 2).map((label) => (
-                <Badge key={label} tone="neutral">{label}</Badge>
-              ))}
+            <span className={cn("tabular-nums", isOverdue(info.row.original) ? "font-semibold text-danger" : "text-ink-2")}>
+              {formatDate(info.getValue(), locale)}
             </span>
           ),
         }),
@@ -119,12 +190,21 @@ export default function TasksPage() {
         actions={
           <Button variant="accent" onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
-            {t("tasks.addTask")}
+            {t("tasks.newTask")}
           </Button>
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      {/* Real KPIs computed from the live task set */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label={t("tasks.total")} value={formatNumber(kpis.total, locale)} icon={ListChecks} />
+        <StatCard label={t("tasks.overdue")} value={formatNumber(kpis.overdue, locale)} icon={AlarmClock} />
+        <StatCard label={t("tasks.dueToday")} value={formatNumber(kpis.dueToday, locale)} icon={CalendarClock} />
+        <StatCard label={t("tasks.completed")} value={formatNumber(kpis.completed, locale)} icon={CheckCircle2} />
+      </div>
+
+      {/* View switch + My tasks */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1">
           {views.map((v) => (
             <button
@@ -140,20 +220,44 @@ export default function TasksPage() {
             </button>
           ))}
         </div>
-        <div className="ms-auto flex flex-wrap gap-2">
-          <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-44" aria-label={t("common.assignee")}>
-            <option value="all">{t("common.assignee")}: {t("common.all")}</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </Select>
-          <Select value={priority} onChange={(e) => setPriority(e.target.value as "all" | Priority)} className="w-40" aria-label={t("common.priority")}>
-            <option value="all">{t("common.priority")}: {t("common.all")}</option>
-            {(["urgent", "high", "medium", "low"] as const).map((p) => (
-              <option key={p} value={p}>{t(`priority.${p}`)}</option>
-            ))}
-          </Select>
-        </div>
+        <button
+          onClick={() => setMine((m) => !m)}
+          className={cn(
+            "flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
+            mine ? "bg-accent/12 text-accent" : "bg-surface-2 text-ink-2 hover:text-ink",
+          )}
+        >
+          <UserRound className="h-3.5 w-3.5" />
+          {t("tasks.myTasks")}
+        </button>
+      </div>
+
+      {/* Full filter row */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Select value={status} onChange={(e) => setStatus(e.target.value as "all" | TaskStatus)} className="w-36" aria-label={t("tasks.filterStatus")}>
+          <option value="all">{t("tasks.filterStatus")}: {t("common.all")}</option>
+          {(["todo", "inProgress", "review", "done", "cancelled"] as const).map((s) => (
+            <option key={s} value={s}>{t(`status.${s}`)}</option>
+          ))}
+        </Select>
+        <Select value={priority} onChange={(e) => setPriority(e.target.value as "all" | Priority)} className="w-32" aria-label={t("tasks.filterPriority")}>
+          <option value="all">{t("tasks.filterPriority")}: {t("common.all")}</option>
+          {(["urgent", "high", "medium", "low"] as const).map((p) => (
+            <option key={p} value={p}>{t(`priority.${p}`)}</option>
+          ))}
+        </Select>
+        <Select value={project} onChange={(e) => setProject(e.target.value)} className="w-44" aria-label={t("tasks.filterProject")}>
+          <option value="all">{t("tasks.filterProject")}: {t("common.all")}</option>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </Select>
+        <Select value={client} onChange={(e) => setClient(e.target.value)} className="w-40" aria-label={t("tasks.filterClient")}>
+          <option value="all">{t("tasks.filterClient")}: {t("common.all")}</option>
+          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-40" aria-label={t("tasks.filterAssignee")}>
+          <option value="all">{t("tasks.filterAssignee")}: {t("common.all")}</option>
+          {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </Select>
       </div>
 
       {!hydrated ? (
@@ -162,14 +266,23 @@ export default function TasksPage() {
             <Skeleton key={i} className="h-72 w-72" />
           ))}
         </div>
+      ) : tasks.length === 0 ? (
+        <Card>
+          <EmptyState icon={ListTodo} title={t("tasks.noTasks")} hint={t("tasks.noTasksHint")}
+            action={<Button variant="accent" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" />{t("tasks.newTask")}</Button>} />
+        </Card>
       ) : view === "kanban" ? (
-        <KanbanBoard tasks={filtered} onMove={moveTask} />
+        boardTasks.length === 0 ? (
+          <Card><EmptyState icon={ListTodo} /></Card>
+        ) : (
+          <KanbanBoard tasks={boardTasks} onMove={moveTask} onOpen={setDetailId} />
+        )
       ) : view === "list" ? (
         <Card>
-          <DataTable data={filtered} columns={columns} pageSize={12} />
+          <DataTable data={filtered} columns={columns} pageSize={12} onRowClick={(tk) => setDetailId(tk.id)} />
         </Card>
       ) : (
-        <TasksMonthGrid tasks={filtered} />
+        <TasksMonthGrid tasks={filtered} onOpen={setDetailId} />
       )}
 
       <TaskFormDialog
@@ -177,17 +290,45 @@ export default function TasksPage() {
         onClose={() => setFormOpen(false)}
         projects={projects}
         employees={employees}
+        clients={clients}
+        defaultProjectId={preselectProject}
         onCreate={(task) => {
           setTasks((prev) => [task, ...prev]);
-          toast(`${t("tasks.addTask")} ✓`);
+          logActivity(task.id, { id: `a-${Date.now()}`, actorId: task.creatorId ?? CURRENT_USER, kind: "created", at: new Date().toISOString() });
+          toast(`${t("tasks.newTask")} ✓`);
         }}
       />
+
+      {detail ? (
+        <TaskDetail
+          task={detail}
+          employees={employees}
+          projects={projects}
+          clients={clients}
+          activity={[
+            { id: `created-${detail.id}`, actorId: detail.creatorId ?? detail.assigneeId ?? CURRENT_USER, kind: "created", at: "2026-06-20T09:00:00Z" },
+            ...(activityLog[detail.id] ?? []),
+          ]}
+          onPatch={(patch) => patchTask(detail.id, patch)}
+          onCancel={() => { patchTask(detail.id, { status: "cancelled" }); toast(`${t("tasks.cancelTask")} ✓`, "info"); }}
+          onReopen={() => patchTask(detail.id, { status: "todo" })}
+          onClose={() => setDetailId(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><Skeleton className="h-9 w-64" /></div>}>
+      <TasksWorkspace />
+    </Suspense>
+  );
+}
+
 /** July 2026 month grid with tasks pinned to their due dates. */
-function TasksMonthGrid({ tasks }: { tasks: Task[] }) {
+function TasksMonthGrid({ tasks, onOpen }: { tasks: Task[]; onOpen: (id: string) => void }) {
   const { t, locale } = useI18n();
   const year = 2026;
   const month = 6; // July (0-based)
@@ -222,7 +363,7 @@ function TasksMonthGrid({ tasks }: { tasks: Task[] }) {
       <div className="grid grid-cols-7">
         {cells.map((day, i) => {
           const iso = day ? `2026-07-${String(day).padStart(2, "0")}` : "";
-          const dayTasks = day ? tasks.filter((task) => task.dueDate === iso) : [];
+          const dayTasks = day ? tasks.filter((task) => task.dueDate === iso && task.status !== "cancelled") : [];
           return (
             <div key={i} className={cn("min-h-24 border-b border-e border-border/60 p-1.5", !day && "bg-surface-2/40")}>
               {day ? (
@@ -232,16 +373,17 @@ function TasksMonthGrid({ tasks }: { tasks: Task[] }) {
                   </p>
                   <div className="space-y-1">
                     {dayTasks.slice(0, 3).map((task) => (
-                      <p
+                      <button
                         key={task.id}
+                        onClick={() => onOpen(task.id)}
                         title={task.title}
                         className={cn(
-                          "truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                          "block w-full cursor-pointer truncate rounded-md px-1.5 py-0.5 text-start text-[10px] font-semibold",
                           task.priority === "urgent" ? "bg-danger-bg text-danger" : task.priority === "high" ? "bg-warning-bg text-warning" : "bg-info-bg text-info",
                         )}
                       >
                         {task.title}
-                      </p>
+                      </button>
                     ))}
                     {dayTasks.length > 3 ? <p className="px-1 text-[9px] text-ink-3">+{dayTasks.length - 3}</p> : null}
                   </div>

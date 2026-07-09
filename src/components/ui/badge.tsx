@@ -38,6 +38,7 @@ const statusTone: Record<string, Tone> = {
   pending: "warning", onHold: "warning", paused: "warning", draft: "neutral", lead: "accent",
   maintenance: "warning", onLeave: "warning", todo: "neutral",
   overdue: "danger", rejected: "danger", expired: "danger", inactive: "neutral", archived: "neutral",
+  cancelled: "danger",
 };
 
 const priorityTone: Record<string, Tone> = {
