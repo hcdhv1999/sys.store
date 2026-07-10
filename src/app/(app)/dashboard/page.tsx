@@ -19,6 +19,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { formatCurrency, formatDate, formatNumber, relativeTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
+import { TodayWidget } from "@/features/dashboard/today-widget";
 import { StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -152,6 +153,11 @@ export default function DashboardPage() {
             <DonutChart data={revenueByService} height={200} />
           </CardBody>
         </Card>
+      </div>
+
+      {/* Today's schedule (Phase 5.5) — real events + tasks */}
+      <div className="mt-4">
+        <TodayWidget />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">

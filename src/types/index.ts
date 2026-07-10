@@ -277,6 +277,14 @@ export interface CalendarEvent {
   durationMin: number;
   attendeeIds: string[];
   relatedClientId: string | null;
+  // Phase 5.5 (additive, optional) — richer scheduling metadata.
+  type?: string; // CalendarType
+  projectId?: string | null;
+  assigneeId?: string | null;
+  priority?: Priority;
+  status?: string;
+  reminder?: string;
+  notes?: string;
 }
 
 export interface AppNotification {

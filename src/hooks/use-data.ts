@@ -33,3 +33,4 @@ export const useStores = makeHook("stores", repo.listStores);
 export const useEmployees = makeHook("employees", repo.listEmployees);
 export const useNotifications = makeHook("notifications", repo.listNotifications);
 export const useCatalog = makeHook("catalog", repo.listCatalog);
+export const useEvents = makeHook("events", repo.listEvents);

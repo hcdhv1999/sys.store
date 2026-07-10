@@ -16,13 +16,16 @@ import { DataConfigError, isDemoMode } from "@/lib/data-mode";
 import * as seed from "@/lib/data/seed";
 import type {
   AppNotification,
+  CalendarEvent,
   CatalogItem,
   Campaign,
   Client,
   Employee,
+  EventKind,
   Expense,
   FileItem,
   Invoice,
+  Priority,
   Project,
   Quotation,
   Store,
@@ -182,6 +185,124 @@ export async function listTasks(): Promise<Task[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as Row[]).map(mapTask);
+}
+
+// ── Calendar events (Phase 5.5) ─────────────────────────────────────────
+
+function mapEvent(r: Row): CalendarEvent {
+  return {
+    id: r.id,
+    tenantId: r.tenant_id,
+    title: r.title,
+    kind: r.kind,
+    date: str(r.starts_on),
+    time: (r.starts_at ? String(r.starts_at).slice(0, 5) : "") || "",
+    durationMin: num(r.duration_min),
+    attendeeIds: [],
+    relatedClientId: r.client_id ?? null,
+    type: str(r.category) || undefined,
+    projectId: r.project_id ?? null,
+    assigneeId: r.assignee_id ?? null,
+    priority: r.priority ?? undefined,
+    status: str(r.status) || undefined,
+    reminder: str(r.reminder) || undefined,
+    notes: str(r.notes) || undefined,
+  };
+}
+
+export type EventInput = {
+  title: string;
+  kind: EventKind;
+  type?: string;
+  date: string;
+  time: string;
+  durationMin: number;
+  clientId?: string | null;
+  projectId?: string | null;
+  assigneeId?: string | null;
+  priority?: Priority;
+  reminder?: string;
+  notes?: string;
+};
+
+export async function listEvents(): Promise<CalendarEvent[]> {
+  if (isDemoMode()) return [...seed.events];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("starts_on", { ascending: true });
+  if (error) throw error;
+  return (data as Row[]).map(mapEvent);
+}
+
+export async function createEvent(input: EventInput): Promise<CalendarEvent> {
+  if (isDemoMode()) {
+    const row: CalendarEvent = {
+      id: `ev-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      title: input.title,
+      kind: input.kind,
+      date: input.date,
+      time: input.time,
+      durationMin: input.durationMin,
+      attendeeIds: input.assigneeId ? [input.assigneeId] : [],
+      relatedClientId: input.clientId ?? null,
+      type: input.type,
+      projectId: input.projectId ?? null,
+      assigneeId: input.assigneeId ?? null,
+      priority: input.priority,
+      status: "scheduled",
+      reminder: input.reminder,
+      notes: input.notes,
+    };
+    seed.events.push(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("events")
+    .insert({
+      title: input.title,
+      kind: input.kind,
+      category: input.type ?? null,
+      starts_on: input.date,
+      starts_at: input.time || null,
+      duration_min: input.durationMin,
+      client_id: input.clientId || null,
+      project_id: input.projectId || null,
+      assignee_id: input.assigneeId || null,
+      priority: input.priority ?? null,
+      reminder: input.reminder ?? null,
+      notes: input.notes ?? null,
+      status: "scheduled",
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapEvent(data as Row);
+}
+
+export async function updateEvent(id: string, patch: Partial<EventInput>): Promise<void> {
+  if (isDemoMode()) {
+    const ev = seed.events.find((e) => e.id === id);
+    if (ev) {
+      if (patch.date) ev.date = patch.date;
+      if (patch.time) ev.time = patch.time;
+      if (patch.title) ev.title = patch.title;
+    }
+    return;
+  }
+  const supabase = requireSupabase();
+  const payload: Row = {};
+  if (patch.date) payload.starts_on = patch.date;
+  if (patch.time !== undefined) payload.starts_at = patch.time || null;
+  if (patch.title) payload.title = patch.title;
+  if (patch.type) payload.category = patch.type;
+  if (patch.priority) payload.priority = patch.priority;
+  if (patch.reminder !== undefined) payload.reminder = patch.reminder;
+  const { error } = await supabase.from("events").update(payload).eq("id", id);
+  if (error) throw error;
 }
 
 export async function listInvoices(): Promise<Invoice[]> {

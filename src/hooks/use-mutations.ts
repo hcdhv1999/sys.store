@@ -7,7 +7,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as repo from "@/services/repository";
-import type { Client, Project, Task } from "@/types";
+import type { CalendarEvent, Client, Project, Task } from "@/types";
 
 function useEntityInvalidation(keys: string[]) {
   const qc = useQueryClient();
@@ -124,5 +124,34 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteProject(id),
     onSuccess: invalidate,
+  });
+}
+
+// ── Calendar events (Phase 5.5) ──────────────────────────────────────────
+
+export function useCreateEvent() {
+  const invalidate = useEntityInvalidation(["events"]);
+  return useMutation({
+    mutationFn: (input: repo.EventInput) => repo.createEvent(input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<repo.EventInput> }) => repo.updateEvent(id, patch),
+    onMutate: async ({ id, patch }) => {
+      await qc.cancelQueries({ queryKey: ["events"] });
+      const previous = qc.getQueryData<CalendarEvent[]>(["events"]);
+      qc.setQueryData<CalendarEvent[]>(["events"], (old) =>
+        (old ?? []).map((e) => (e.id === id ? { ...e, ...(patch.date ? { date: patch.date } : {}), ...(patch.time !== undefined ? { time: patch.time } : {}), ...(patch.title ? { title: patch.title } : {}) } : e)),
+      );
+      return { previous };
+    },
+    onError: (_e, _v, context) => {
+      if (context?.previous) qc.setQueryData(["events"], context.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["events"] }),
   });
 }
