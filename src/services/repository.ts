@@ -403,6 +403,10 @@ export async function createClient(input: ClientInput): Promise<Client> {
     return row;
   }
   const supabase = requireSupabase();
+  // Return only the inserted client row. We deliberately do NOT embed
+  // client_contacts(*) here: a brand-new client has no contacts, and embedding
+  // a second table in the INSERT ... RETURNING couples the whole insert to
+  // client_contacts read permission — a failure there rolls back the client.
   const { data, error } = await supabase
     .from("clients")
     .insert({
@@ -418,10 +422,12 @@ export async function createClient(input: ClientInput): Promise<Client> {
       phone: input.phone,
       notes: input.notes,
     })
-    .select("*, client_contacts(*)")
+    .select("*")
     .single();
   if (error) throw error;
   const client = mapClient(data as Row);
+  // Optional first contact — inserted separately so a contact-table issue can
+  // never roll back a successfully created client.
   if (input.contactName) {
     const { error: contactError } = await supabase
       .from("client_contacts")
