@@ -15,6 +15,18 @@ begin
     return;
   end if;
 
+  -- Set the tenant_id default to current_tenant_id() ONLY when the column has
+  -- no default yet (column_default IS NULL) and the helper exists — same fix as
+  -- clients. Never overwrites an existing default and never touches existing
+  -- rows; inserts that omit tenant_id will then satisfy the RLS WITH CHECK.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'events'
+      and column_name = 'tenant_id' and column_default is null
+  ) and exists (select 1 from pg_proc where proname = 'current_tenant_id') then
+    alter table public.events alter column tenant_id set default current_tenant_id();
+  end if;
+
   -- Plain, always-safe columns.
   alter table public.events add column if not exists category text;
   alter table public.events add column if not exists status   text not null default 'scheduled';
