@@ -261,6 +261,10 @@ export interface FileItem {
   ownerId: string;
   modifiedAt: string;
   versions: number;
+  /** set when the file is a task attachment */
+  taskId?: string | null;
+  /** storage object path (production) or object URL (demo) */
+  storagePath?: string;
 }
 
 export interface CalendarEvent {

@@ -1,12 +1,18 @@
 "use client";
 
 // ── Data repositories ──────────────────────────────────────────────────
-// One async API for every entity. With Supabase configured the functions
-// query PostgreSQL (RLS scopes rows to the caller's tenant) and map
-// snake_case rows to the domain types; otherwise they resolve instantly
-// from the bundled demo seed so the whole product works out of the box.
+// Two explicit modes (src/lib/data-mode.ts):
+//  PRODUCTION (default) — Supabase is the single source of truth. If the
+//    client is not configured, every call throws DataConfigError; there is
+//    no silent seed fallback.
+//  DEMO (NEXT_PUBLIC_DATA_MODE=demo, development only) — reads and writes
+//    go to an in-memory copy of the bundled seed so the product can be
+//    explored without a database. Mutations mutate that store, which makes
+//    TanStack Query invalidation deliver real cross-page updates.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { DataConfigError, isDemoMode } from "@/lib/data-mode";
 import * as seed from "@/lib/data/seed";
 import type {
   AppNotification,
@@ -15,6 +21,7 @@ import type {
   Client,
   Employee,
   Expense,
+  FileItem,
   Invoice,
   Project,
   Quotation,
@@ -28,15 +35,28 @@ type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
 const str = (v: unknown) => (v == null ? "" : String(v));
 const num = (v: unknown) => (v == null ? 0 : Number(v));
 
-export async function listClients(): Promise<Client[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.clients;
-  const { data, error } = await supabase
-    .from("clients")
-    .select("*, client_contacts(*)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data as Row[]).map((r) => ({
+/** Production-mode Supabase client — configuration errors are loud. */
+function requireSupabase(): SupabaseClient {
+  const client = getSupabaseBrowser();
+  if (!client) throw new DataConfigError();
+  return client;
+}
+
+// ── Demo store (explicit demo mode only) ────────────────────────────────
+// Mutable copies of the seed; list* return fresh array refs so React Query
+// consumers re-render after invalidation.
+const demo = {
+  clients: [...seed.clients.map((c) => ({ ...c }))],
+  projects: [...seed.projects.map((p) => ({ ...p }))],
+  tasks: [...seed.tasks.map((t) => ({ ...t }))],
+  taskComments: [...seed.taskComments.map((c) => ({ ...c }))],
+  attachments: [] as FileItem[],
+};
+
+// ── Row mappers ─────────────────────────────────────────────────────────
+
+function mapClient(r: Row): Client {
+  return {
     id: r.id,
     tenantId: r.tenant_id,
     name: r.name,
@@ -59,18 +79,11 @@ export async function listClients(): Promise<Client[]> {
     since: str(r.since),
     notes: str(r.notes),
     lastActivity: str(r.last_activity ?? r.updated_at),
-  }));
+  };
 }
 
-export async function listProjects(): Promise<Project[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.projects;
-  const { data, error } = await supabase
-    .from("projects")
-    .select("*, milestones(*), project_members(employee_id)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data as Row[]).map((r) => ({
+function mapProject(r: Row): Project {
+  return {
     id: r.id,
     tenantId: r.tenant_id,
     clientId: str(r.client_id),
@@ -93,18 +106,11 @@ export async function listProjects(): Promise<Project[]> {
       done: Boolean(m.done),
     })),
     description: str(r.description),
-  }));
+  };
 }
 
-export async function listTasks(): Promise<Task[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.tasks;
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*, task_comments(count)")
-    .order("position");
-  if (error) throw error;
-  return (data as Row[]).map((r) => ({
+function mapTask(r: Row): Task {
+  return {
     id: r.id,
     tenantId: r.tenant_id,
     projectId: r.project_id,
@@ -124,12 +130,63 @@ export async function listTasks(): Promise<Task[]> {
     subtasksTotal: 0,
     comments: num(r.task_comments?.[0]?.count),
     attachments: 0,
-  }));
+  };
+}
+
+function mapFile(r: Row): FileItem {
+  return {
+    id: r.id,
+    tenantId: r.tenant_id,
+    name: r.name,
+    folder: str(r.folder_name),
+    type: (r.kind ?? "doc") as FileItem["type"],
+    sizeMB: num(r.size_mb),
+    ownerId: str(r.owner_id),
+    modifiedAt: str(r.updated_at ?? r.created_at),
+    versions: num(r.versions) || 1,
+    taskId: r.task_id ?? null,
+    storagePath: str(r.storage_path),
+  };
+}
+
+// ── Reads ───────────────────────────────────────────────────────────────
+
+export async function listClients(): Promise<Client[]> {
+  if (isDemoMode()) return [...demo.clients];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("clients")
+    .select("*, client_contacts(*)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as Row[]).map(mapClient);
+}
+
+export async function listProjects(): Promise<Project[]> {
+  if (isDemoMode()) return [...demo.projects];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*, milestones(*), project_members(employee_id)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as Row[]).map(mapProject);
+}
+
+export async function listTasks(): Promise<Task[]> {
+  if (isDemoMode()) return [...demo.tasks];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*, task_comments(count)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as Row[]).map(mapTask);
 }
 
 export async function listInvoices(): Promise<Invoice[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.invoices;
+  if (isDemoMode()) return seed.invoices;
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("invoices")
     .select("*, invoice_items(*)")
@@ -159,8 +216,8 @@ export async function listInvoices(): Promise<Invoice[]> {
 }
 
 export async function listExpenses(): Promise<Expense[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.expenses;
+  if (isDemoMode()) return seed.expenses;
+  const supabase = requireSupabase();
   const { data, error } = await supabase.from("expenses").select("*").order("spent_on", { ascending: false });
   if (error) throw error;
   return (data as Row[]).map((r) => ({
@@ -176,8 +233,8 @@ export async function listExpenses(): Promise<Expense[]> {
 }
 
 export async function listQuotations(): Promise<Quotation[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.quotations;
+  if (isDemoMode()) return seed.quotations;
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("quotations")
     .select("*, quotation_items(*)")
@@ -205,8 +262,8 @@ export async function listQuotations(): Promise<Quotation[]> {
 }
 
 export async function listCampaigns(): Promise<Campaign[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.campaigns;
+  if (isDemoMode()) return seed.campaigns;
+  const supabase = requireSupabase();
   const { data, error } = await supabase.from("campaigns").select("*").order("start_date", { ascending: false });
   if (error) throw error;
   return (data as Row[]).map((r) => ({
@@ -229,8 +286,8 @@ export async function listCampaigns(): Promise<Campaign[]> {
 }
 
 export async function listStores(): Promise<Store[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.stores;
+  if (isDemoMode()) return seed.stores;
+  const supabase = requireSupabase();
   const { data, error } = await supabase.from("stores").select("*").order("created_at", { ascending: false });
   if (error) throw error;
   return (data as Row[]).map((r) => ({
@@ -254,8 +311,8 @@ export async function listStores(): Promise<Store[]> {
 }
 
 export async function listEmployees(): Promise<Employee[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.employees;
+  if (isDemoMode()) return seed.employees;
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("employees")
     .select("*, profiles(full_name, full_name_en, email, phone, role)")
@@ -280,8 +337,8 @@ export async function listEmployees(): Promise<Employee[]> {
 }
 
 export async function listNotifications(): Promise<AppNotification[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.notifications;
+  if (isDemoMode()) return seed.notifications;
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
@@ -301,8 +358,8 @@ export async function listNotifications(): Promise<AppNotification[]> {
 }
 
 export async function listCatalog(): Promise<CatalogItem[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.catalog;
+  if (isDemoMode()) return seed.catalog;
+  const supabase = requireSupabase();
   const { data, error } = await supabase.from("catalog_items").select("*").order("name");
   if (error) throw error;
   return (data as Row[]).map((r) => ({
@@ -321,35 +378,239 @@ export async function listCatalog(): Promise<CatalogItem[]> {
   }));
 }
 
+// ── Client mutations ────────────────────────────────────────────────────
+// Every production mutation writes to Supabase and returns the real row.
+// tenant_id / creator ids come from DB defaults bound to the session
+// (migration 0007), so RLS-scoped inserts need no client-side tenant value.
+
+export type ClientInput = Pick<
+  Client,
+  "name" | "industry" | "status" | "city" | "address" | "cr" | "vatNumber" | "website" | "email" | "phone" | "notes"
+> & { contactName?: string };
+
+export async function createClient(input: ClientInput): Promise<Client> {
+  if (isDemoMode()) {
+    const row: Client = {
+      id: `cl-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      contacts: input.contactName ? [{ name: input.contactName, title: "", email: input.email, phone: input.phone }] : [],
+      tags: [],
+      since: new Date().toISOString().slice(0, 10),
+      lastActivity: new Date().toISOString(),
+      ...input,
+    };
+    demo.clients.unshift(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("clients")
+    .insert({
+      name: input.name,
+      industry: input.industry,
+      status: input.status,
+      city: input.city,
+      address: input.address,
+      cr_number: input.cr || null,
+      vat_number: input.vatNumber || null,
+      website: input.website,
+      email: input.email,
+      phone: input.phone,
+      notes: input.notes,
+    })
+    .select("*, client_contacts(*)")
+    .single();
+  if (error) throw error;
+  const client = mapClient(data as Row);
+  if (input.contactName) {
+    const { error: contactError } = await supabase
+      .from("client_contacts")
+      .insert({ client_id: client.id, name: input.contactName, email: input.email, phone: input.phone });
+    if (!contactError) client.contacts = [{ name: input.contactName, title: "", email: input.email, phone: input.phone }];
+  }
+  return client;
+}
+
+export async function updateClient(id: string, patch: Partial<ClientInput>): Promise<void> {
+  if (isDemoMode()) {
+    demo.clients = demo.clients.map((c) => (c.id === id ? { ...c, ...patch } : c));
+    return;
+  }
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from("clients")
+    .update({
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.industry !== undefined && { industry: patch.industry }),
+      ...(patch.status !== undefined && { status: patch.status }),
+      ...(patch.city !== undefined && { city: patch.city }),
+      ...(patch.address !== undefined && { address: patch.address }),
+      ...(patch.cr !== undefined && { cr_number: patch.cr || null }),
+      ...(patch.vatNumber !== undefined && { vat_number: patch.vatNumber || null }),
+      ...(patch.website !== undefined && { website: patch.website }),
+      ...(patch.email !== undefined && { email: patch.email }),
+      ...(patch.phone !== undefined && { phone: patch.phone }),
+      ...(patch.notes !== undefined && { notes: patch.notes }),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function archiveClient(id: string): Promise<void> {
+  return updateClient(id, { status: "archived" });
+}
+
+// ── Project mutations ───────────────────────────────────────────────────
+
+export type ProjectInput = Pick<
+  Project,
+  "name" | "clientId" | "service" | "priority" | "budget" | "startDate" | "deadline" | "managerId" | "description"
+>;
+
+export async function createProject(input: ProjectInput): Promise<Project> {
+  if (isDemoMode()) {
+    const row: Project = {
+      id: `pr-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      status: "planning",
+      progress: 0,
+      spent: 0,
+      teamIds: input.managerId ? [input.managerId] : [],
+      hoursLogged: 0,
+      milestones: [],
+      ...input,
+    };
+    demo.projects.unshift(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({
+      name: input.name,
+      client_id: input.clientId || null,
+      service: input.service,
+      priority: input.priority,
+      budget: input.budget,
+      start_date: input.startDate || null,
+      deadline: input.deadline || null,
+      manager_id: input.managerId || null,
+      description: input.description,
+      status: "planning",
+    })
+    .select("*, milestones(*), project_members(employee_id)")
+    .single();
+  if (error) throw error;
+  return mapProject(data as Row);
+}
+
+export async function updateProject(id: string, patch: Partial<Project>): Promise<void> {
+  if (isDemoMode()) {
+    demo.projects = demo.projects.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    return;
+  }
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.status !== undefined && { status: patch.status }),
+      ...(patch.priority !== undefined && { priority: patch.priority }),
+      ...(patch.progress !== undefined && { progress: patch.progress }),
+      ...(patch.budget !== undefined && { budget: patch.budget }),
+      ...(patch.deadline !== undefined && { deadline: patch.deadline }),
+      ...(patch.description !== undefined && { description: patch.description }),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  if (isDemoMode()) {
+    demo.projects = demo.projects.filter((p) => p.id !== id);
+    demo.tasks = demo.tasks.map((t) => (t.projectId === id ? { ...t, projectId: null } : t));
+    return;
+  }
+  const supabase = requireSupabase();
+  const { error } = await supabase.from("projects").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Task mutations ──────────────────────────────────────────────────────
-// With Supabase these persist to Postgres (RLS scopes to the tenant); in
-// demo mode they resolve so the caller's optimistic local update stands.
-// Callers await these and roll back their optimistic state on rejection.
 
-export async function persistTaskStatus(taskId: string, status: string): Promise<void> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return;
-  const { error } = await supabase.from("tasks").update({ status }).eq("id", taskId);
+export type TaskInput = Pick<
+  Task,
+  "title" | "status" | "priority" | "projectId" | "clientId" | "assigneeId" | "startDate" | "dueDate" | "labels" | "notes"
+>;
+
+export async function createTask(input: TaskInput): Promise<Task> {
+  if (isDemoMode()) {
+    const row: Task = {
+      id: `tk-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      creatorId: "e-1",
+      estimateH: 0,
+      spentH: 0,
+      subtasksDone: 0,
+      subtasksTotal: 0,
+      comments: 0,
+      attachments: 0,
+      ...input,
+    };
+    demo.tasks.unshift(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({
+      title: input.title,
+      status: input.status,
+      priority: input.priority,
+      project_id: input.projectId || null,
+      client_id: input.clientId || null,
+      assignee_id: input.assigneeId || null,
+      start_date: input.startDate || null,
+      due_date: input.dueDate || null,
+      labels: input.labels,
+      notes: input.notes ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapTask(data as Row);
+}
+
+export async function updateTask(id: string, patch: Partial<Task>): Promise<void> {
+  if (isDemoMode()) {
+    demo.tasks = demo.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    return;
+  }
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.status !== undefined && { status: patch.status }),
+      ...(patch.priority !== undefined && { priority: patch.priority }),
+      ...(patch.projectId !== undefined && { project_id: patch.projectId }),
+      ...(patch.clientId !== undefined && { client_id: patch.clientId }),
+      ...(patch.assigneeId !== undefined && { assignee_id: patch.assigneeId || null }),
+      ...(patch.startDate !== undefined && { start_date: patch.startDate || null }),
+      ...(patch.dueDate !== undefined && { due_date: patch.dueDate }),
+      ...(patch.estimateH !== undefined && { estimate_hours: patch.estimateH }),
+      ...(patch.spentH !== undefined && { spent_hours: patch.spentH }),
+      ...(patch.notes !== undefined && { notes: patch.notes }),
+    })
+    .eq("id", id);
   if (error) throw error;
 }
 
-export async function persistTask(taskId: string, patch: Record<string, unknown>): Promise<void> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return;
-  const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
-  if (error) throw error;
-}
-
-export async function createTaskRow(payload: Record<string, unknown>): Promise<void> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return;
-  const { error } = await supabase.from("tasks").insert(payload);
-  if (error) throw error;
-}
+// ── Task comments ───────────────────────────────────────────────────────
 
 export async function listTaskComments(taskId: string): Promise<TaskComment[]> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return seed.taskComments.filter((c) => c.taskId === taskId);
+  if (isDemoMode()) return demo.taskComments.filter((c) => c.taskId === taskId);
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("task_comments")
     .select("*")
@@ -366,9 +627,136 @@ export async function listTaskComments(taskId: string): Promise<TaskComment[]> {
   }));
 }
 
-export async function addTaskComment(taskId: string, body: string): Promise<void> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return;
-  const { error } = await supabase.from("task_comments").insert({ task_id: taskId, body });
+export async function addTaskComment(taskId: string, body: string): Promise<TaskComment> {
+  if (isDemoMode()) {
+    const row: TaskComment = {
+      id: `tc-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      taskId,
+      authorId: "e-1",
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    demo.taskComments.push(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("task_comments")
+    .insert({ task_id: taskId, body })
+    .select()
+    .single();
+  if (error) throw error;
+  const r = data as Row;
+  return { id: r.id, tenantId: r.tenant_id, taskId: r.task_id, authorId: str(r.author_id), body: r.body, createdAt: str(r.created_at) };
+}
+
+// ── Task attachments (Supabase Storage, bucket "attachments") ───────────
+
+export const ATTACHMENT_MAX_MB = 10;
+export const ATTACHMENT_TYPES: Record<string, FileItem["type"]> = {
+  "application/pdf": "pdf",
+  "image/png": "image",
+  "image/jpeg": "image",
+  "image/webp": "image",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "doc",
+  "application/vnd.ms-excel": "sheet",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "sheet",
+  "application/zip": "doc",
+  "text/plain": "doc",
+};
+
+export class AttachmentValidationError extends Error {
+  readonly name = "AttachmentValidationError";
+}
+
+function validateAttachment(file: File): FileItem["type"] {
+  if (file.size > ATTACHMENT_MAX_MB * 1024 * 1024) {
+    throw new AttachmentValidationError(`File exceeds ${ATTACHMENT_MAX_MB} MB`);
+  }
+  const kind = ATTACHMENT_TYPES[file.type];
+  if (!kind) throw new AttachmentValidationError(`File type not allowed: ${file.type || "unknown"}`);
+  return kind;
+}
+
+/** Storage object path: safe, unguessable, scoped under the task. */
+function attachmentPath(taskId: string, fileName: string): string {
+  const safe = fileName.replace(/[^\w.\-؀-ۿ]/g, "_").slice(-80);
+  return `tasks/${taskId}/${crypto.randomUUID()}-${safe}`;
+}
+
+export async function listTaskAttachments(taskId: string): Promise<FileItem[]> {
+  if (isDemoMode()) return demo.attachments.filter((f) => f.taskId === taskId);
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from("files").select("*").eq("task_id", taskId).order("created_at");
+  if (error) throw error;
+  return (data as Row[]).map(mapFile);
+}
+
+export async function uploadTaskAttachment(taskId: string, file: File): Promise<FileItem> {
+  const kind = validateAttachment(file);
+  if (isDemoMode()) {
+    const row: FileItem = {
+      id: `att-${Date.now()}`,
+      tenantId: seed.TENANT_ID,
+      name: file.name,
+      folder: "",
+      type: kind,
+      sizeMB: file.size / (1024 * 1024),
+      ownerId: "e-1",
+      modifiedAt: new Date().toISOString(),
+      versions: 1,
+      taskId,
+      storagePath: URL.createObjectURL(file), // demo-only: local object URL
+    };
+    demo.attachments.push(row);
+    return row;
+  }
+  const supabase = requireSupabase();
+  const path = attachmentPath(taskId, file.name);
+  const { error: uploadError } = await supabase.storage.from("attachments").upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (uploadError) throw uploadError;
+  const { data, error } = await supabase
+    .from("files")
+    .insert({
+      name: file.name,
+      kind,
+      size_mb: Number((file.size / (1024 * 1024)).toFixed(2)),
+      storage_path: path,
+      task_id: taskId,
+    })
+    .select()
+    .single();
+  if (error) {
+    // keep storage consistent with metadata
+    await supabase.storage.from("attachments").remove([path]);
+    throw error;
+  }
+  return mapFile(data as Row);
+}
+
+export async function attachmentUrl(item: FileItem): Promise<string> {
+  if (isDemoMode()) return item.storagePath ?? "#";
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.storage.from("attachments").createSignedUrl(item.storagePath ?? "", 60 * 10);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function deleteTaskAttachment(item: FileItem): Promise<void> {
+  if (isDemoMode()) {
+    demo.attachments = demo.attachments.filter((f) => f.id !== item.id);
+    return;
+  }
+  const supabase = requireSupabase();
+  if (item.storagePath) {
+    const { error: storageError } = await supabase.storage.from("attachments").remove([item.storagePath]);
+    if (storageError) throw storageError;
+  }
+  const { error } = await supabase.from("files").delete().eq("id", item.id);
   if (error) throw error;
 }

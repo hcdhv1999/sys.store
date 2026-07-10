@@ -1,12 +1,11 @@
 import { ClientDetail } from "@/features/clients/client-detail";
-import { clients } from "@/lib/data/seed";
 
-// Prerender every client profile at build time (static — Edge-free on
-// Cloudflare Pages). Unknown ids fall through to the 404 page.
-export function generateStaticParams() {
-  return clients.map((client) => ({ id: client.id }));
-}
-export const dynamicParams = false;
+// Client profiles resolve real tenant records by id at request time. In
+// production the id is a Supabase UUID that cannot be enumerated at build
+// time, so this route runs on the Edge runtime (dynamic params) rather than
+// being statically prerendered from the seed.
+export const runtime = "edge";
+export const dynamicParams = true;
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

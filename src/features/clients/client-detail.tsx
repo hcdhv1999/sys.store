@@ -4,26 +4,42 @@ import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
 import { ArrowRight, Building2, Calendar, FileText, Globe, Mail, MapPin, Phone, Receipt } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
-import { formatCurrency, formatDate, formatNumber, relativeTime } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
-import { byId, campaignMetrics, clientRollup, employeeName, invoiceTotal, isOverdue, tasksForClient } from "@/lib/data/queries";
-import { activity, tasks as allTasks } from "@/lib/data/seed";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataError } from "@/components/ui/data-error";
+import { useClients, useEmployees, useProjects, useTasks } from "@/hooks/use-data";
+import { campaignMetrics, clientRollup, invoiceTotal, isOverdue } from "@/lib/data/queries";
 import { cn } from "@/lib/utils";
 
 export function ClientDetail({ id }: { id: string }) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const client = byId.client(id);
+  // Real tenant records from the query cache (Supabase in production).
+  const { data: clients, isLoading, isError, error } = useClients();
+  const { data: employees } = useEmployees();
+  const { data: projects } = useProjects();
+  const { data: allTasks } = useTasks();
+
+  if (isError) return <DataError error={error} />;
+  if (isLoading) return <div className="animate-fade-up space-y-4"><Skeleton className="h-44" /><Skeleton className="h-72" /></div>;
+
+  const client = clients.find((c) => c.id === id);
   if (!client) notFound();
 
+  const employeeNameFor = (eid: string) => employees.find((e) => e.id === eid)?.name ?? "—";
+  const projectNameFor = (pid: string | null) => (pid && projects.find((p) => p.id === pid)?.name) || t("tasks.noProject");
+  // A task's client: explicit link, else inherited from its (real) project.
+  const clientOfTask = (task: (typeof allTasks)[number]) => task.clientId ?? projects.find((p) => p.id === task.projectId)?.clientId ?? null;
+  // Cross-module rollups (invoices/campaigns/stores) are still seed-derived
+  // until those modules are cut over; a real tenant client simply has none yet.
   const rollup = clientRollup(client.id);
-  const clientTasks = tasksForClient(client.id, allTasks);
-  const clientActivity = activity.filter((a) => a.target.includes(client.name.slice(0, 6)));
+  const clientTasks = allTasks.filter((tk) => clientOfTask(tk) === client.id);
 
   return (
     <div className="animate-fade-up">
@@ -132,18 +148,9 @@ export function ClientDetail({ id }: { id: string }) {
           <Card>
             <CardHeader title={t("common.timeline")} />
             <CardBody>
-              <ul className="relative space-y-5 before:absolute before:inset-y-1 before:start-[5px] before:w-px before:bg-border">
-                {(clientActivity.length ? clientActivity : activity.slice(0, 4)).map((item) => (
-                  <li key={item.id} className="relative ps-6">
-                    <span className="absolute start-0 top-1 h-2.5 w-2.5 rounded-full border-2 border-accent bg-surface" />
-                    <p className="text-xs leading-relaxed text-ink-2">
-                      <span className="font-bold text-ink">{employeeName(item.actorId)}</span> {item.action}{" "}
-                      <span className="font-semibold text-ink">{item.target}</span>
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-ink-3">{relativeTime(item.at, locale)}</p>
-                  </li>
-                ))}
-              </ul>
+              {/* Real per-client activity feed lands with the Activity module
+                  cutover; no seed events are shown for a production client. */}
+              <EmptyState title={t("common.timeline")} />
             </CardBody>
           </Card>
         </TabsContent>
@@ -199,10 +206,10 @@ export function ClientDetail({ id }: { id: string }) {
                 {clientTasks.map((task) => (
                   <li key={task.id}>
                     <Link href={`/tasks?task=${task.id}`} className="flex items-center gap-3 border-b border-border/60 px-5 py-3 transition-colors last:border-0 hover:bg-surface-2/60">
-                      <Avatar name={employeeName(task.assigneeId)} size="sm" />
+                      <Avatar name={employeeNameFor(task.assigneeId)} size="sm" />
                       <div className="min-w-0 flex-1">
                         <p className={cn("truncate text-sm font-medium", task.status === "done" ? "text-ink-3 line-through" : "text-ink")}>{task.title}</p>
-                        <p className="mt-0.5 text-[11px] text-ink-3">{task.projectId ? byId.project(task.projectId)?.name : t("tasks.noProject")}</p>
+                        <p className="mt-0.5 text-[11px] text-ink-3">{projectNameFor(task.projectId)}</p>
                       </div>
                       <span className={cn("text-[11px] tabular-nums", isOverdue(task) ? "font-semibold text-danger" : "text-ink-3")}>{formatDate(task.dueDate, locale, { day: "numeric", month: "short" })}</span>
                       <StatusBadge status={task.status} />

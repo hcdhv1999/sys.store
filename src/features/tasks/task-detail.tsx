@@ -6,10 +6,10 @@
 // table, local optimistic in demo); the activity timeline reflects real
 // session events. Attachments are honestly deferred (needs Storage).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Ban, CalendarClock, FolderKanban, MessageSquare, Paperclip, RotateCcw, Send, Timer, User } from "lucide-react";
+import { Ban, CalendarClock, Download, FileText, FolderKanban, MessageSquare, Paperclip, RotateCcw, Send, Timer, Trash2, Upload, User } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatDate, formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { Dialog } from "@/components/ui/dialog";
@@ -19,10 +19,11 @@ import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/toast";
-import { listTaskComments, addTaskComment } from "@/services/repository";
+import { listTaskComments, addTaskComment, listTaskAttachments, attachmentUrl, ATTACHMENT_MAX_MB } from "@/services/repository";
+import { useTaskAttachments } from "@/hooks/use-mutations";
 import { employeeName, taskClientId } from "@/lib/data/queries";
 import { cn } from "@/lib/utils";
-import type { Client, Employee, Priority, Project, Task, TaskComment, TaskStatus } from "@/types";
+import type { Client, Employee, FileItem, Priority, Project, Task, TaskComment, TaskStatus } from "@/types";
 import type { MessageKey } from "@/lib/i18n/en";
 
 const STATUSES: TaskStatus[] = ["todo", "inProgress", "review", "done", "cancelled"];
@@ -208,11 +209,8 @@ export function TaskDetail({
           </div>
         </div>
 
-        {/* Attachments — honestly deferred */}
-        <div className="rounded-xl border border-dashed border-border p-3.5">
-          <p className="flex items-center gap-1.5 text-xs font-bold text-ink-2"><Paperclip className="h-3.5 w-3.5" />{t("tasks.attachments")}</p>
-          <p className="mt-1 text-xs text-ink-3">{t("tasks.attachmentsDeferred")}</p>
-        </div>
+        {/* Attachments — real Supabase Storage (task_id-scoped, tenant-isolated) */}
+        <Attachments task={task} />
 
         {/* Activity timeline (real session events) */}
         <div>
@@ -248,6 +246,83 @@ export function TaskDetail({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/** Task attachments — upload/list/open/delete backed by Supabase Storage. */
+function Attachments({ task }: { task: Task }) {
+  const { t, locale } = useI18n();
+  const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { upload, remove } = useTaskAttachments();
+
+  const { data: files = [], isLoading } = useQuery({
+    queryKey: ["task-attachments", task.id],
+    queryFn: () => listTaskAttachments(task.id),
+  });
+
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (file.size > ATTACHMENT_MAX_MB * 1024 * 1024) {
+      toast(t("tasks.attachmentTooLarge"), "error");
+      return;
+    }
+    upload.mutate(
+      { taskId: task.id, file },
+      {
+        onSuccess: () => toast(`${file.name} ✓`),
+        onError: (err) => toast(err instanceof Error && err.name === "AttachmentValidationError" ? t("tasks.attachmentBadType") : t("data.saveFailed"), "error"),
+      },
+    );
+  }
+
+  async function open(item: FileItem) {
+    try {
+      const url = await attachmentUrl(item);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast(t("data.queryFailed"), "error");
+    }
+  }
+
+  function del(item: FileItem) {
+    remove.mutate(item, { onError: () => toast(t("data.saveFailed"), "error") });
+  }
+
+  return (
+    <div className="rounded-xl border border-border p-3.5">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-xs font-bold text-ink"><Paperclip className="h-3.5 w-3.5 text-accent" />{t("tasks.attachments")} ({formatNumber(files.length, locale)})</p>
+        <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()} disabled={upload.isPending}>
+          <Upload className="h-3.5 w-3.5" />{upload.isPending ? t("tasks.uploading") : t("tasks.uploadFile")}
+        </Button>
+        <input ref={inputRef} type="file" className="hidden" onChange={onPick} accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" />
+      </div>
+      {isLoading ? (
+        <p className="text-xs text-ink-3">…</p>
+      ) : files.length === 0 ? (
+        <p className="text-xs text-ink-3">{t("tasks.noAttachments")}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {files.map((f) => (
+            <li key={f.id} className="flex items-center gap-2 rounded-lg bg-surface-2/60 px-2.5 py-1.5">
+              <FileText className="h-4 w-4 shrink-0 text-ink-3" />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">{f.name}</span>
+              <span className="shrink-0 text-[11px] text-ink-3 tabular-nums">{formatNumber(f.sizeMB, locale)} MB</span>
+              <button onClick={() => open(f)} title={t("tasks.download")} className="cursor-pointer rounded-md p-1 text-ink-3 hover:bg-surface hover:text-accent">
+                <Download className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => del(f)} title={t("tasks.deleteAttachment")} disabled={remove.isPending} className="cursor-pointer rounded-md p-1 text-ink-3 hover:bg-surface hover:text-danger">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] text-ink-3">{t("tasks.attachmentHint")}</p>
+    </div>
   );
 }
 

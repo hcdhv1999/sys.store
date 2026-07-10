@@ -19,7 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useEmployees, useProjects, useTasks } from "@/hooks/use-data";
 import { clientName, employeeName, isOverdue, projectName, taskClientId, taskKpis } from "@/lib/data/queries";
-import { persistTask, persistTaskStatus } from "@/services/repository";
+import { useCreateTask, useUpdateTask } from "@/hooks/use-mutations";
+import { DataError } from "@/components/ui/data-error";
 import { KanbanBoard } from "@/features/tasks/kanban";
 import { TaskFormDialog } from "@/features/tasks/task-form";
 import { TaskDetail, type ActivityEntry } from "@/features/tasks/task-detail";
@@ -35,13 +36,16 @@ function TasksWorkspace() {
   const { t, locale } = useI18n();
   const toast = useToast();
   const params = useSearchParams();
-  const { data: fetched, isLoading } = useTasks();
+  // Single source of truth: the query cache. Mutations patch it optimistically
+  // and invalidate on settle, so the board, list, calendar, and every other
+  // page stay in sync and survive a refresh (no local task-array shadow state).
+  const { data: tasks, isLoading, isError: tasksError, error: tasksErr } = useTasks();
   const { data: projects } = useProjects();
   const { data: employees } = useEmployees();
   const { data: clients } = useClients();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [hydrated, setHydrated] = useState(false);
   const [view, setView] = useState<View>("kanban");
   const [mine, setMine] = useState(false);
   const [status, setStatus] = useState<"all" | TaskStatus>("all");
@@ -54,13 +58,6 @@ function TasksWorkspace() {
   // Session activity log per task (created + moves) — real events, not mock.
   const [activityLog, setActivityLog] = useState<Record<string, ActivityEntry[]>>({});
 
-  useEffect(() => {
-    if (!isLoading && !hydrated) {
-      setTasks(fetched);
-      setHydrated(true);
-    }
-  }, [isLoading, hydrated, fetched]);
-
   // Deep link from a project ("+ add task") preselects that project.
   const preselectProject = params.get("project") ?? undefined;
   useEffect(() => {
@@ -70,8 +67,8 @@ function TasksWorkspace() {
   // Deep link from project/client task rows opens that task's details.
   const deepTask = params.get("task");
   useEffect(() => {
-    if (deepTask && hydrated) setDetailId(deepTask);
-  }, [deepTask, hydrated]);
+    if (deepTask && !isLoading) setDetailId(deepTask);
+  }, [deepTask, isLoading]);
 
   const kpis = taskKpis(tasks);
   const detail = tasks.find((tk) => tk.id === detailId) ?? null;
@@ -96,41 +93,38 @@ function TasksWorkspace() {
     setActivityLog((prev) => ({ ...prev, [taskId]: [...(prev[taskId] ?? []), entry] }));
   }, []);
 
-  // Optimistic status move with rollback on a failed DB write (Supabase path).
+  // Optimistic status move — the mutation patches the cache and rolls back
+  // on a failed Supabase write; here we only log the session event + toast.
   const moveTask = useCallback(
-    async (taskId: string, next: TaskStatus) => {
+    (taskId: string, next: TaskStatus) => {
       const prevTask = tasks.find((tk) => tk.id === taskId);
       if (!prevTask || prevTask.status === next) return;
-      setTasks((prev) => prev.map((tk) => (tk.id === taskId ? { ...tk, status: next } : tk)));
       logActivity(taskId, { id: `a-${Date.now()}`, actorId: CURRENT_USER, kind: "moved", status: next, at: new Date().toISOString() });
-      try {
-        await persistTaskStatus(taskId, next);
-        toast(`${t("common.updated")}: ${t(`status.${next}`)}`, "info");
-      } catch {
-        setTasks((prev) => prev.map((tk) => (tk.id === taskId ? prevTask : tk)));
-        toast(t("common.invalidValue"), "error");
-      }
+      updateTask.mutate(
+        { id: taskId, patch: { status: next } },
+        {
+          onSuccess: () => toast(`${t("common.updated")}: ${t(`status.${next}`)}`, "info"),
+          onError: () => toast(t("data.saveFailed"), "error"),
+        },
+      );
     },
-    [tasks, logActivity, t, toast],
+    [tasks, logActivity, t, toast, updateTask],
   );
 
-  // Inline detail edits — optimistic patch with rollback.
+  // Inline detail edits — the mutation owns the optimistic patch + rollback.
   const patchTask = useCallback(
-    async (taskId: string, patch: Partial<Task>) => {
+    (taskId: string, patch: Partial<Task>) => {
       const prevTask = tasks.find((tk) => tk.id === taskId);
       if (!prevTask) return;
-      setTasks((prev) => prev.map((tk) => (tk.id === taskId ? { ...tk, ...patch } : tk)));
       if (patch.status) {
         logActivity(taskId, { id: `a-${Date.now()}`, actorId: CURRENT_USER, kind: "moved", status: patch.status, at: new Date().toISOString() });
       }
-      try {
-        await persistTask(taskId, patch as Record<string, unknown>);
-      } catch {
-        setTasks((prev) => prev.map((tk) => (tk.id === taskId ? prevTask : tk)));
-        toast(t("common.invalidValue"), "error");
-      }
+      updateTask.mutate(
+        { id: taskId, patch },
+        { onError: () => toast(t("data.saveFailed"), "error") },
+      );
     },
-    [tasks, logActivity, t, toast],
+    [tasks, logActivity, t, toast, updateTask],
   );
 
   const columns = useMemo<ColumnDef<Task, unknown>[]>(
@@ -260,7 +254,9 @@ function TasksWorkspace() {
         </Select>
       </div>
 
-      {!hydrated ? (
+      {tasksError ? (
+        <DataError error={tasksErr} />
+      ) : isLoading ? (
         <div className="flex gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-72 w-72" />
@@ -292,10 +288,16 @@ function TasksWorkspace() {
         employees={employees}
         clients={clients}
         defaultProjectId={preselectProject}
-        onCreate={(task) => {
-          setTasks((prev) => [task, ...prev]);
-          logActivity(task.id, { id: `a-${Date.now()}`, actorId: task.creatorId ?? CURRENT_USER, kind: "created", at: new Date().toISOString() });
-          toast(`${t("tasks.newTask")} ✓`);
+        submitting={createTask.isPending}
+        onCreate={(input) => {
+          createTask.mutate(input, {
+            onSuccess: (task) => {
+              logActivity(task.id, { id: `a-${Date.now()}`, actorId: task.creatorId ?? CURRENT_USER, kind: "created", at: new Date().toISOString() });
+              toast(`${t("tasks.newTask")} ✓`);
+              setFormOpen(false);
+            },
+            onError: () => toast(t("data.saveFailed"), "error"),
+          });
         }}
       />
 

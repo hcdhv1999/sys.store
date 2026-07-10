@@ -233,6 +233,14 @@ export const en = {
   "tasks.noComments": "No comments yet",
   "tasks.attachments": "Attachments",
   "tasks.attachmentsDeferred": "File attachments require the Storage integration — coming in a later phase.",
+  "tasks.uploadFile": "Upload file",
+  "tasks.uploading": "Uploading…",
+  "tasks.noAttachments": "No files attached yet",
+  "tasks.attachmentHint": "PDF, image, or document · up to 10 MB",
+  "tasks.attachmentTooLarge": "File exceeds 10 MB",
+  "tasks.attachmentBadType": "File type not allowed",
+  "tasks.download": "Open",
+  "tasks.deleteAttachment": "Delete file",
   "tasks.activity": "Activity",
   "tasks.created": "created the task",
   "tasks.movedTo": "moved it to",
@@ -479,6 +487,13 @@ export const en = {
   "docs.eSignature": "E-signature",
   "docs.issuedBy": "Issued by",
   "docs.openDocument": "Open document",
+
+  // Data errors (production mode)
+  "data.notConfigured": "Database not configured",
+  "data.notConfiguredHint": "This workspace runs in production data mode and requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or enable the development demo explicitly with NEXT_PUBLIC_DATA_MODE=demo.",
+  "data.queryFailed": "Couldn't load data",
+  "data.queryFailedHint": "The database query failed. Check your connection and Supabase status, then try again.",
+  "data.saveFailed": "Couldn't save — the change was rolled back",
 
   // Roles
   "role.owner": "Owner",

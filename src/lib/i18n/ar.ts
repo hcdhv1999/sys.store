@@ -235,6 +235,14 @@ export const ar: Record<MessageKey, string> = {
   "tasks.noComments": "لا توجد تعليقات بعد",
   "tasks.attachments": "المرفقات",
   "tasks.attachmentsDeferred": "إرفاق الملفات يتطلب تكامل التخزين — سيأتي في مرحلة لاحقة.",
+  "tasks.uploadFile": "رفع ملف",
+  "tasks.uploading": "جارٍ الرفع…",
+  "tasks.noAttachments": "لا توجد ملفات مرفقة بعد",
+  "tasks.attachmentHint": "PDF أو صورة أو مستند · حتى ١٠ ميجابايت",
+  "tasks.attachmentTooLarge": "حجم الملف يتجاوز ١٠ ميجابايت",
+  "tasks.attachmentBadType": "نوع الملف غير مسموح به",
+  "tasks.download": "فتح",
+  "tasks.deleteAttachment": "حذف الملف",
   "tasks.activity": "النشاط",
   "tasks.created": "أنشأ المهمة",
   "tasks.movedTo": "نقلها إلى",
@@ -481,6 +489,13 @@ export const ar: Record<MessageKey, string> = {
   "docs.eSignature": "التوقيع الإلكتروني",
   "docs.issuedBy": "صادر عن",
   "docs.openDocument": "فتح المستند",
+
+  // Data errors (production mode)
+  "data.notConfigured": "قاعدة البيانات غير مهيأة",
+  "data.notConfiguredHint": "تعمل مساحة العمل بوضع البيانات الحقيقية وتتطلب Supabase. عيّن NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY، أو فعّل الوضع التجريبي صراحةً بـ NEXT_PUBLIC_DATA_MODE=demo.",
+  "data.queryFailed": "تعذّر تحميل البيانات",
+  "data.queryFailedHint": "فشل استعلام قاعدة البيانات. تحقق من الاتصال وحالة Supabase ثم أعد المحاولة.",
+  "data.saveFailed": "تعذّر الحفظ — تم التراجع عن التغيير",
 
   // Roles
   "role.owner": "المالك",

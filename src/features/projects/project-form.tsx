@@ -7,8 +7,8 @@ import { useI18n } from "@/lib/i18n/provider";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
-import type { Client, Employee, Project } from "@/types";
-import { TENANT_ID } from "@/lib/data/seed";
+import type { Client, Employee } from "@/types";
+import type { ProjectInput } from "@/services/repository";
 
 const schema = z.object({
   name: z.string().min(3),
@@ -29,12 +29,14 @@ export function ProjectFormDialog({
   onCreate,
   clients,
   employees,
+  submitting,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (project: Project) => void;
+  onCreate: (input: ProjectInput) => void;
   clients: Client[];
   employees: Employee[];
+  submitting?: boolean;
 }) {
   const { t } = useI18n();
   const {
@@ -46,26 +48,17 @@ export function ProjectFormDialog({
 
   const onSubmit = handleSubmit((values) => {
     onCreate({
-      id: `pr-${Date.now()}`,
-      tenantId: TENANT_ID,
       clientId: values.clientId,
       name: values.name,
       service: values.service,
-      status: "planning",
       priority: values.priority,
-      progress: 0,
       budget: values.budget,
-      spent: 0,
       startDate: values.startDate,
       deadline: values.deadline,
       managerId: values.managerId,
-      teamIds: [values.managerId],
-      hoursLogged: 0,
-      milestones: [],
       description: values.description ?? "",
     });
     reset();
-    onClose();
   });
 
   const err = (k: keyof FormValues) => (errors[k] ? t("common.invalidValue") : undefined);
@@ -75,7 +68,7 @@ export function ProjectFormDialog({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={onSubmit} disabled={isSubmitting}>{t("common.create")}</Button>
+          <Button onClick={onSubmit} disabled={isSubmitting || submitting}>{t("common.create")}</Button>
         </>
       }
     >

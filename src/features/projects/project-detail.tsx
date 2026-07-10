@@ -11,18 +11,31 @@ import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
-import { byId, clientName, employeeName, isOverdue, projectTaskStats } from "@/lib/data/queries";
-import { tasks as allTasks } from "@/lib/data/seed";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataError } from "@/components/ui/data-error";
+import { useClients, useEmployees, useProjects, useTasks } from "@/hooks/use-data";
+import { isOverdue, projectTaskStats } from "@/lib/data/queries";
 import { cn } from "@/lib/utils";
 
 export function ProjectDetail({ id }: { id: string }) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const project = byId.project(id);
+  // Real tenant records from the query cache (Supabase in production).
+  const { data: projects, isLoading, isError, error } = useProjects();
+  const { data: clients } = useClients();
+  const { data: employees } = useEmployees();
+  const { data: allTasks } = useTasks();
   // Local optimistic milestone toggling (persisted via Supabase in production)
   const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>({});
+
+  if (isError) return <DataError error={error} />;
+  if (isLoading) return <div className="animate-fade-up space-y-4"><Skeleton className="h-40" /><Skeleton className="h-64" /></div>;
+
+  const project = projects.find((p) => p.id === id);
   if (!project) notFound();
 
+  const clientNameFor = (cid: string | null) => (cid && clients.find((c) => c.id === cid)?.name) || "—";
+  const employeeNameFor = (eid: string) => employees.find((e) => e.id === eid)?.name ?? "—";
   const projectTasks = allTasks.filter((task) => task.projectId === project.id);
   const taskStats = projectTaskStats(project.id, allTasks);
   const isDone = (mId: string, fallback: boolean) => doneOverrides[mId] ?? fallback;
@@ -46,7 +59,7 @@ export function ProjectDetail({ id }: { id: string }) {
             </div>
             <p className="mt-1 text-sm text-ink-2">
               <Link href={`/clients/${project.clientId}`} className="font-semibold text-accent hover:text-accent-hover">
-                {clientName(project.clientId)}
+                {clientNameFor(project.clientId)}
               </Link>{" "}
               · {project.service}
             </p>
@@ -142,7 +155,7 @@ export function ProjectDetail({ id }: { id: string }) {
                 {projectTasks.map((task) => (
                   <li key={task.id}>
                     <Link href={`/tasks?task=${task.id}`} className="flex items-center gap-3 border-b border-border/60 px-5 py-3 transition-colors last:border-0 hover:bg-surface-2/60">
-                      <Avatar name={employeeName(task.assigneeId)} size="sm" />
+                      <Avatar name={employeeNameFor(task.assigneeId)} size="sm" />
                       <div className="min-w-0 flex-1">
                         <p className={cn("truncate text-sm font-medium", task.status === "done" ? "text-ink-3 line-through" : "text-ink")}>
                           {task.title}
@@ -172,7 +185,7 @@ export function ProjectDetail({ id }: { id: string }) {
         <CardHeader title={t("projects.team")} />
         <CardBody className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {project.teamIds.map((memberId) => {
-            const member = byId.employee(memberId);
+            const member = employees.find((e) => e.id === memberId);
             if (!member) return null;
             return (
               <div key={memberId} className="flex items-center gap-3 rounded-xl border border-border p-3">

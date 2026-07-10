@@ -11,8 +11,14 @@ const STALE_MS = 60_000;
 
 function makeHook<T>(key: string, fn: () => Promise<T[]>) {
   return function useCollection() {
-    const { data, isLoading, isError } = useQuery({ queryKey: [key], queryFn: fn, staleTime: STALE_MS });
-    return { data: data ?? [], isLoading, isError };
+    const { data, isLoading, isError, error } = useQuery({
+      queryKey: [key],
+      queryFn: fn,
+      staleTime: STALE_MS,
+      // Config errors are deterministic — retrying only delays the message.
+      retry: (failureCount, err) => (err instanceof Error && err.name === "DataConfigError" ? false : failureCount < 1),
+    });
+    return { data: data ?? [], isLoading, isError, error };
   };
 }
 

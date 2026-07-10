@@ -7,8 +7,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
-import type { Client } from "@/types";
-import { TENANT_ID } from "@/lib/data/seed";
+import type { ClientInput } from "@/services/repository";
 
 // Quick capture: only the person, their mobile, and what they do are
 // required. Everything else can be completed later from the profile.
@@ -31,10 +30,13 @@ export function ClientFormDialog({
   open,
   onClose,
   onCreate,
+  submitting,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (client: Client) => void;
+  // Emits a repository input; the page persists it (Supabase in production).
+  onCreate: (input: ClientInput) => void;
+  submitting?: boolean;
 }) {
   const { t } = useI18n();
   const {
@@ -46,10 +48,7 @@ export function ClientFormDialog({
 
   const onSubmit = handleSubmit((values) => {
     onCreate({
-      id: `cl-${Date.now()}`,
-      tenantId: TENANT_ID,
-      // The company falls back to the person's name for individual clients,
-      // keeping the existing Client shape (and DB columns) unchanged.
+      // The company falls back to the person's name for individual clients.
       name: values.companyName?.trim() || values.fullName,
       industry: values.businessActivity,
       status: "active",
@@ -60,14 +59,10 @@ export function ClientFormDialog({
       website: "",
       email: values.email ?? "",
       phone: values.mobile,
-      contacts: [{ name: values.fullName, title: "", email: values.email ?? "", phone: values.mobile }],
-      tags: [],
-      since: new Date().toISOString().slice(0, 10),
       notes: values.notes ?? "",
-      lastActivity: new Date().toISOString(),
+      contactName: values.fullName,
     });
     reset();
-    onClose();
   });
 
   const err = (k: keyof FormValues) => (errors[k] ? t("common.invalidValue") : undefined);
@@ -77,7 +72,7 @@ export function ClientFormDialog({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={onSubmit} disabled={isSubmitting}>{t("common.create")}</Button>
+          <Button onClick={onSubmit} disabled={isSubmitting || submitting}>{t("common.create")}</Button>
         </>
       }
     >

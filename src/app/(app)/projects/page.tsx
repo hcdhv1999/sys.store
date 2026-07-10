@@ -16,6 +16,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useEmployees, useProjects } from "@/hooks/use-data";
+import { useCreateProject } from "@/hooks/use-mutations";
+import { DataError } from "@/components/ui/data-error";
 import { clientName, employeeName } from "@/lib/data/queries";
 import { ProjectFormDialog } from "@/features/projects/project-form";
 import { cn } from "@/lib/utils";
@@ -24,16 +26,16 @@ import type { Project, ProjectStatus } from "@/types";
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
   const toast = useToast();
-  const { data: fetched, isLoading } = useProjects();
+  const { data: fetched, isLoading, isError, error } = useProjects();
+  const createProject = useCreateProject();
   const { data: clients } = useClients();
   const { data: employees } = useEmployees();
-  const [created, setCreated] = useState<Project[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
 
-  const projects = useMemo(() => [...created, ...fetched], [created, fetched]);
+  const projects = fetched;
   const filtered = projects.filter(
     (p) =>
       (statusFilter === "all" || p.status === statusFilter) &&
@@ -80,7 +82,9 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <DataError error={error} />
+      ) : isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-52" />
@@ -182,9 +186,15 @@ export default function ProjectsPage() {
         onClose={() => setFormOpen(false)}
         clients={clients}
         employees={employees}
-        onCreate={(project) => {
-          setCreated((prev) => [project, ...prev]);
-          toast(`${t("projects.addProject")}: ${project.name} ✓`);
+        submitting={createProject.isPending}
+        onCreate={(input) => {
+          createProject.mutate(input, {
+            onSuccess: (project) => {
+              toast(`${t("projects.addProject")}: ${project.name} ✓`);
+              setFormOpen(false);
+            },
+            onError: () => toast(t("data.saveFailed"), "error"),
+          });
         }}
       />
     </div>

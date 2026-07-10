@@ -15,9 +15,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { DataError } from "@/components/ui/data-error";
 import { useToast } from "@/components/ui/toast";
 import { useClients } from "@/hooks/use-data";
-import { byId, clientRollup } from "@/lib/data/queries";
+import { useCreateClient } from "@/hooks/use-mutations";
+import { clientRollup } from "@/lib/data/queries";
 import { ClientFormDialog } from "@/features/clients/client-form";
 import type { Client, ClientStatus } from "@/types";
 
@@ -27,12 +29,11 @@ export default function ClientsPage() {
   const { t, locale } = useI18n();
   const router = useRouter();
   const toast = useToast();
-  const { data: fetched, isLoading } = useClients();
-  const [created, setCreated] = useState<Client[]>([]);
+  const { data: clients, isLoading, isError, error } = useClients();
+  const createClient = useCreateClient();
   const [statusFilter, setStatusFilter] = useState<"all" | ClientStatus>("all");
   const [formOpen, setFormOpen] = useState(false);
 
-  const clients = useMemo(() => [...created, ...fetched], [created, fetched]);
   const filtered = statusFilter === "all" ? clients : clients.filter((c) => c.status === statusFilter);
 
   const activeCount = clients.filter((c) => c.status === "active").length;
@@ -113,6 +114,7 @@ export default function ClientsPage() {
         <StatCard label={t("clients.outstanding")} value={formatCurrency(totalOutstanding, locale)} icon={Building2} />
       </div>
 
+      {isError ? <DataError error={error} /> : (
       <Card>
         {isLoading ? (
           <TableSkeleton />
@@ -120,12 +122,7 @@ export default function ClientsPage() {
           <DataTable
             data={filtered}
             columns={columns}
-            onRowClick={(client) => {
-              // Session-created demo clients have no prerendered profile page;
-              // with Supabase connected every client persists and navigates.
-              if (byId.client(client.id)) router.push(`/clients/${client.id}`);
-              else toast(t("common.demo"), "info");
-            }}
+            onRowClick={(client) => router.push(`/clients/${client.id}`)}
             toolbar={
               <Select
                 value={statusFilter}
@@ -142,13 +139,20 @@ export default function ClientsPage() {
           />
         )}
       </Card>
+      )}
 
       <ClientFormDialog
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        onCreate={(client) => {
-          setCreated((prev) => [client, ...prev]);
-          toast(`${t("clients.addClient")}: ${client.name} ✓`);
+        submitting={createClient.isPending}
+        onCreate={(input) => {
+          createClient.mutate(input, {
+            onSuccess: (client) => {
+              toast(`${t("clients.addClient")}: ${client.name} ✓`);
+              setFormOpen(false);
+            },
+            onError: () => toast(t("data.saveFailed"), "error"),
+          });
         }}
       />
     </div>

@@ -8,9 +8,9 @@ import { useI18n } from "@/lib/i18n/provider";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
-import type { Client, Employee, Project, Task, TaskStatus } from "@/types";
+import type { Client, Employee, Project, TaskStatus } from "@/types";
+import type { TaskInput } from "@/services/repository";
 import type { MessageKey } from "@/lib/i18n/en";
-import { TENANT_ID } from "@/lib/data/seed";
 
 // Fast capture: only title + status are required; everything else optional.
 const schema = z.object({
@@ -37,15 +37,17 @@ export function TaskFormDialog({
   employees,
   clients,
   defaultProjectId,
+  submitting,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (task: Task) => void;
+  onCreate: (input: TaskInput) => void;
   projects: Project[];
   employees: Employee[];
   clients: Client[];
   /** preselect this project (and its client) when opened from a project */
   defaultProjectId?: string;
+  submitting?: boolean;
 }) {
   const { t } = useI18n();
   const {
@@ -82,28 +84,18 @@ export function TaskFormDialog({
 
   const onSubmit = handleSubmit((values) => {
     onCreate({
-      id: `tk-${Date.now()}`,
-      tenantId: TENANT_ID,
       projectId: values.projectId || null,
       clientId: values.clientId || null,
       title: values.title,
       status: values.status,
       priority: values.priority,
       assigneeId: values.assigneeId,
-      creatorId: "e-1",
       startDate: values.startDate || undefined,
-      dueDate: values.dueDate || "2026-12-31",
+      dueDate: values.dueDate || "",
       labels: values.labels.split(/[،,]/).map((l) => l.trim()).filter(Boolean),
-      estimateH: 0,
-      spentH: 0,
       notes: values.description || undefined,
-      subtasksDone: 0,
-      subtasksTotal: 0,
-      comments: 0,
-      attachments: 0,
     });
     reset();
-    onClose();
   });
 
   return (
@@ -111,7 +103,7 @@ export function TaskFormDialog({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={onSubmit} disabled={isSubmitting}>{t("common.create")}</Button>
+          <Button onClick={onSubmit} disabled={isSubmitting || submitting}>{t("common.create")}</Button>
         </>
       }
     >

@@ -1,12 +1,11 @@
 import { ProjectDetail } from "@/features/projects/project-detail";
-import { projects } from "@/lib/data/seed";
 
-// Prerender every project workspace at build time (static — Edge-free on
-// Cloudflare Pages). Unknown ids fall through to the 404 page.
-export function generateStaticParams() {
-  return projects.map((project) => ({ id: project.id }));
-}
-export const dynamicParams = false;
+// Project workspaces resolve real tenant records by id at request time. In
+// production the id is a Supabase UUID that cannot be enumerated at build
+// time, so this route runs on the Edge runtime (dynamic params) rather than
+// being statically prerendered from the seed.
+export const runtime = "edge";
+export const dynamicParams = true;
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

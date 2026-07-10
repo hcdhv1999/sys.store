@@ -6,8 +6,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 let client: SupabaseClient | null | undefined;
 
 /**
- * Browser Supabase client. Returns null when the project runs in demo mode
- * (no NEXT_PUBLIC_SUPABASE_URL configured) — callers fall back to seed data.
+ * Browser Supabase client. Returns null when the env vars are absent. In
+ * production the repository turns that null into a DataConfigError (no silent
+ * seed fallback); only explicit demo mode (NEXT_PUBLIC_DATA_MODE=demo) serves
+ * seed data.
  */
 export function getSupabaseBrowser(): SupabaseClient | null {
   if (client !== undefined) return client;
