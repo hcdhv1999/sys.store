@@ -1,14 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { supabaseAnonKey, supabaseUrl } from "./env";
 
 /**
  * Server-side Supabase client bound to the request cookies.
  * Returns null in demo mode (no env configured).
  */
 export async function getSupabaseServer(): Promise<SupabaseClient | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = supabaseUrl();
+  const key = supabaseAnonKey();
   if (!url || !key) return null;
 
   const cookieStore = await cookies();

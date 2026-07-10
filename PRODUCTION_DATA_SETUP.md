@@ -24,20 +24,24 @@ for both **Production** and **Preview**).
 | Variable | Required | Exposure | Purpose |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ yes | browser | Supabase project URL, e.g. `https://xxxx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ yes | browser | Supabase **anon** public key (RLS-protected) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ yes | browser | Supabase **publishable** public key (`sb_publishable_…`, RLS-protected) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ⚠️ legacy | browser | Older projects' anon key — used only as a fallback if the publishable key is unset |
 | `NEXT_PUBLIC_DATA_MODE` | ❌ no | browser | Set to `demo` **only** for a local/dev demo. Leave unset in production. |
+
+The app reads the publishable key first and falls back to the legacy anon key
+(`src/lib/supabase/env.ts`). Set **one** of them — prefer the publishable key.
 
 > **Never** put the Supabase **service-role** key in any `NEXT_PUBLIC_*`
 > variable or anywhere the browser can read it. This app talks to Supabase
-> exclusively through the anon key + Row Level Security. The service-role key is
-> not used by the app at all.
+> exclusively through the publishable/anon key + Row Level Security. The
+> service-role key is not used by the app at all.
 
 `.env.local` example for a developer running against a real project:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...   # anon key, not service_role
-# NEXT_PUBLIC_DATA_MODE=demo                    # uncomment for the offline demo
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...   # publishable key, not service_role
+# NEXT_PUBLIC_DATA_MODE=demo                               # uncomment for the offline demo
 ```
 
 ### Failure handling (what the user sees)

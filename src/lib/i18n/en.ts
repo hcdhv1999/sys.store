@@ -490,7 +490,7 @@ export const en = {
 
   // Data errors (production mode)
   "data.notConfigured": "Database not configured",
-  "data.notConfiguredHint": "This workspace runs in production data mode and requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or enable the development demo explicitly with NEXT_PUBLIC_DATA_MODE=demo.",
+  "data.notConfiguredHint": "This workspace runs in production data mode and requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, or enable the development demo explicitly with NEXT_PUBLIC_DATA_MODE=demo.",
   "data.queryFailed": "Couldn't load data",
   "data.queryFailedHint": "The database query failed. Check your connection and Supabase status, then try again.",
   "data.saveFailed": "Couldn't save — the change was rolled back",

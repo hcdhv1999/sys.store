@@ -492,7 +492,7 @@ export const ar: Record<MessageKey, string> = {
 
   // Data errors (production mode)
   "data.notConfigured": "قاعدة البيانات غير مهيأة",
-  "data.notConfiguredHint": "تعمل مساحة العمل بوضع البيانات الحقيقية وتتطلب Supabase. عيّن NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY، أو فعّل الوضع التجريبي صراحةً بـ NEXT_PUBLIC_DATA_MODE=demo.",
+  "data.notConfiguredHint": "تعمل مساحة العمل بوضع البيانات الحقيقية وتتطلب Supabase. عيّن NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY، أو فعّل الوضع التجريبي صراحةً بـ NEXT_PUBLIC_DATA_MODE=demo.",
   "data.queryFailed": "تعذّر تحميل البيانات",
   "data.queryFailedHint": "فشل استعلام قاعدة البيانات. تحقق من الاتصال وحالة Supabase ثم أعد المحاولة.",
   "data.saveFailed": "تعذّر الحفظ — تم التراجع عن التغيير",

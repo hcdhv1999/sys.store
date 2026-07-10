@@ -151,7 +151,9 @@ export default function ClientsPage() {
               toast(`${t("clients.addClient")}: ${client.name} ✓`);
               setFormOpen(false);
             },
-            onError: () => toast(t("data.saveFailed"), "error"),
+            // Surface the real Supabase error (e.g. RLS / tenant issues) so a
+            // failed insert is never silently presented as saved.
+            onError: (err) => toast(err instanceof Error ? err.message : t("data.saveFailed"), "error"),
           });
         }}
       />
