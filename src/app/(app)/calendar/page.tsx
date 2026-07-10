@@ -30,12 +30,10 @@ import { DataError } from "@/components/ui/data-error";
 import { useToast } from "@/components/ui/toast";
 import { useClients, useEmployees, useProjects } from "@/hooks/use-data";
 import { useCreateEvent, useUpdateEvent, useUpdateTask } from "@/hooks/use-mutations";
-import { useCalendarItems, taskIdOf, type CalendarItem } from "@/features/calendar/use-calendar-items";
+import { useCalendarItems, taskIdOf, todayISO, type CalendarItem } from "@/features/calendar/use-calendar-items";
 import { CALENDAR_TYPES, EVENT_TYPES, DONE_CHIP, DONE_DOT, LATE_CHIP, LATE_DOT, type CalendarType } from "@/lib/calendar/event-types";
 import { cn } from "@/lib/utils";
 import type { MessageKey } from "@/lib/i18n/en";
-
-const TODAY = "2026-07-02";
 
 function chipClass(item: CalendarItem): string {
   if (item.done) return DONE_CHIP;
@@ -131,8 +129,9 @@ export default function CalendarPage() {
   const updateEvent = useUpdateEvent();
   const updateTask = useUpdateTask();
 
-  const [monthIndex, setMonthIndex] = useState(6); // July 2026
-  const [selectedDay, setSelectedDay] = useState(TODAY);
+  const today = todayISO(); // real current date, no hardcoded reference
+  const [monthIndex, setMonthIndex] = useState(() => new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(today);
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [fType, setFType] = useState<"all" | CalendarType>("all");
@@ -157,7 +156,7 @@ export default function CalendarPage() {
     );
   }, [items, query, fType, fClient, fProject, fAssignee]);
 
-  const year = 2026;
+  const year = Number(today.slice(0, 4));
   const first = new Date(Date.UTC(year, monthIndex, 1));
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   const startOffset = first.getUTCDay();
@@ -254,7 +253,7 @@ export default function CalendarPage() {
           const dayNum = Number(iso.slice(8, 10));
           const count = itemsByDay(iso).length;
           const types = [...new Set(itemsByDay(iso).map((i) => (i.done ? "done" : i.late ? "late" : i.type)))].slice(0, 4);
-          const isToday = iso === TODAY;
+          const isToday = iso === today;
           const isSel = iso === selectedDay;
           return (
             <button
@@ -323,7 +322,7 @@ export default function CalendarPage() {
                 <Button variant="ghost" size="icon" onClick={() => setMonthIndex((m) => Math.max(0, m - 1))} aria-label={t("common.previous")}>
                   <ChevronRight className="h-4 w-4 ltr:rotate-180" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => { setMonthIndex(6); setSelectedDay(TODAY); }}>{t("common.today")}</Button>
+                <Button variant="outline" size="sm" onClick={() => { setMonthIndex(new Date().getMonth()); setSelectedDay(today); }}>{t("common.today")}</Button>
                 <Button variant="ghost" size="icon" onClick={() => setMonthIndex((m) => Math.min(11, m + 1))} aria-label={t("common.next")}>
                   <ChevronLeft className="h-4 w-4 ltr:rotate-180" />
                 </Button>
@@ -340,7 +339,7 @@ export default function CalendarPage() {
                   {cells.map((day, i) => {
                     const iso = day ? isoOf(day) : "";
                     return (
-                      <DayCell key={i} day={day} iso={iso} items={day ? itemsByDay(iso) : []} selected={Boolean(day) && iso === selectedDay} isToday={iso === TODAY} onSelect={setSelectedDay} />
+                      <DayCell key={i} day={day} iso={iso} items={day ? itemsByDay(iso) : []} selected={Boolean(day) && iso === selectedDay} isToday={iso === today} onSelect={setSelectedDay} />
                     );
                   })}
                 </div>

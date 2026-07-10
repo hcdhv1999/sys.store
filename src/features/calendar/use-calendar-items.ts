@@ -8,8 +8,13 @@
 
 import { useMemo } from "react";
 import { useEvents, useTasks } from "@/hooks/use-data";
-import { TODAY, isOverdue } from "@/lib/data/queries";
 import { typeFromKind, type CalendarType } from "@/lib/calendar/event-types";
+
+/** Real "today" as an ISO date (yyyy-mm-dd) — no seed/hardcoded reference. */
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export interface CalendarItem {
   id: string;
@@ -29,8 +34,10 @@ export interface CalendarItem {
 export function useCalendarItems() {
   const { data: events, isLoading: le, isError: ee, error: eerr } = useEvents();
   const { data: tasks, isLoading: lt, isError: te, error: terr } = useTasks();
+  const today = todayISO();
 
   const items = useMemo<CalendarItem[]>(() => {
+    const isLate = (date: string, done: boolean) => !done && Boolean(date) && date < today;
     const fromEvents: CalendarItem[] = events.map((e) => ({
       id: e.id,
       source: "event",
@@ -43,7 +50,7 @@ export function useCalendarItems() {
       assigneeId: e.assigneeId ?? null,
       priority: e.priority,
       done: e.status === "done",
-      late: false,
+      late: isLate(e.date, e.status === "done"),
     }));
 
     const fromTasks: CalendarItem[] = tasks
@@ -60,18 +67,18 @@ export function useCalendarItems() {
         assigneeId: tk.assigneeId || null,
         priority: tk.priority,
         done: tk.status === "done",
-        late: isOverdue(tk),
+        late: isLate(tk.dueDate, tk.status === "done"),
       }));
 
     return [...fromEvents, ...fromTasks];
-  }, [events, tasks]);
+  }, [events, tasks, today]);
 
   return {
     items,
     isLoading: le || lt,
     isError: ee || te,
     error: eerr ?? terr,
-    today: TODAY,
+    today,
   };
 }
 
