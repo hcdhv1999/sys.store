@@ -2,6 +2,15 @@
 
 All notable changes per phase. Newest on top. Migrations are additive & idempotent.
 
+## Fix — Tenant RLS policies (resolves the 42501 blocker)
+- Proven root cause via direct live-DB inspection: 23 business tables had RLS enabled
+  but ZERO policies (deny-all); only clients/profiles/tenants had policies — so every
+  insert except clients failed with 42501.
+- Migration 0013: created tenant-scoped policies (authenticated, tenant_id =
+  current_tenant_id()) on all tenant tables, mirroring the working clients policies.
+  Applied to the live project and verified (impersonated authenticated insert into
+  tasks succeeded; tenant_id auto-filled).
+
 ## Phase 5.5 — Smart Calendar & Scheduler
 - Connected the calendar to real Supabase data (repository listEvents/createEvent/updateEvent + hooks).
 - Week bar, month view (type colors + "+N" overflow), day panel, filters, search, drag-to-reschedule.

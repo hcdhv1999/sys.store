@@ -13,10 +13,15 @@ Last pushed commit on origin/main: 205ba49
 - Earlier phases 5.1–5.3 per prior tracking
 
 ## Current blocker
-Task creation fails with 42501 (new row violates RLS policy on "tasks").
-tenant_id default was applied via migration 0012, but it still fails → the failing
-condition is another conjunct in the tasks INSERT WITH CHECK (not yet inspected on the
-live DB). Root cause must be proven from the live database before any further fix.
+None. The tasks 42501 blocker is RESOLVED.
+
+Root cause (proven on the live DB): RLS was enabled on 23 business tables but they
+had ZERO policies (deny-all), while only clients/profiles/tenants had policies — so
+every insert except clients failed with 42501. Migration 0013 created the same
+tenant-scoped policies clients has (authenticated, tenant_id = current_tenant_id())
+on all tenant tables. Verified live: an impersonated authenticated insert into tasks
+succeeded and tenant_id auto-filled from the default. Applied directly to the live
+project and committed to the repo.
 
 ## Known differences (live DB vs repo) — always verify against the live DB
 - Live DB uses current_tenant_id() (NOT the repo's auth_tenant_id()).
@@ -27,7 +32,10 @@ live DB). Root cause must be proven from the live database before any further fi
 Confirm migrations 0008–0012 are actually applied on the live project.
 
 ## Next task
-Connect directly to the live DB and prove exactly which expression in the tasks INSERT
-WITH CHECK evaluates FALSE (print the policy, check tenant_id/creator_id defaults, run an
-impersonated insert). Then apply an additive, idempotent fix and verify a task persists
-after refresh.
+Regression-verify the app end-to-end against the live DB (create client, project, task,
+comment, attachment; refresh; sign out/in). Then continue with Phase 5.6.
+
+## Optional hardening (from Supabase security advisor, non-blocking)
+- Set an explicit search_path on public.set_updated_at.
+- Review EXECUTE on SECURITY DEFINER functions current_tenant_id() / rls_auto_enable().
+- Enable leaked-password protection in Auth.
