@@ -2,6 +2,14 @@
 
 All notable changes per phase. Newest on top. Migrations are additive & idempotent.
 
+## Fix — tenant_id defaults on all business tables (0014)
+- Smoke test (real DB, as authenticated user) caught: creating a Project failed with 42501.
+- Proven cause: only 5 tables had tenant_id DEFAULT current_tenant_id(); the rest were NULL
+  (broad 0009 never applied on live), so the app's project insert stored NULL and failed the
+  RLS check. 0014 sets the default on every business table with tenant_id (except profiles).
+- Applied and verified live: full CRUD smoke test (client/project/task create+update+delete +
+  calendar event) all pass and persist; logs clean.
+
 ## Fix — Tenant RLS policies (resolves the 42501 blocker)
 - Proven root cause via direct live-DB inspection: 23 business tables had RLS enabled
   but ZERO policies (deny-all); only clients/profiles/tenants had policies — so every
